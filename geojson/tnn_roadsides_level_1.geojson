@@ -1,6 +1,5 @@
 {
 "type": "FeatureCollection",
-"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::3857" } },
 "features": [
 { "type": "Feature", "properties": { "grid_x": 120, "grid_y": 125, "count_of_spots": 2, "center_lon": 120.15651070999596, "center_lat": 22.990345004386665, "resource_level": 1 }, "geometry": { "type": "Polygon", "coordinates": [ [ [ 120.155973, 22.989935 ], [ 120.157048, 22.989935 ], [ 120.157048, 22.990755 ], [ 120.155973, 22.990755 ], [ 120.155973, 22.989935 ] ] ] } },
 { "type": "Feature", "properties": { "grid_x": 120, "grid_y": 124, "count_of_spots": 9, "center_lon": 120.15651070999594, "center_lat": 22.989525570880186, "resource_level": 1 }, "geometry": { "type": "Polygon", "coordinates": [ [ [ 120.155973, 22.989116 ], [ 120.157048, 22.989116 ], [ 120.157048, 22.989935 ], [ 120.155973, 22.989935 ], [ 120.155973, 22.989116 ] ] ] } },
