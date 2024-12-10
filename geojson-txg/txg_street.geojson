@@ -54,6 +54,7 @@
         ]
     ]},
     "style": {
+        "stroke":"blue",
         "__comment": "all SVG styles allowed",
         "fill": "red",
         "stroke-width": "8",
