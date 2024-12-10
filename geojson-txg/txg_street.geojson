@@ -1,9 +1,6 @@
 { "type": "Feature",
   "geometry": {
     "type": "MultiLineString",
-    "properties": {
-    "stroke-width": "10"
-    },
     "coordinates": [
         [
             [
@@ -65,5 +62,8 @@
     },
     "className":{
         "baseVal":"deryann_line"
-   }
+   },
+   "properties": {
+    "stroke-width": "10"
+    }
 }
