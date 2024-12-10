@@ -1,6 +1,9 @@
 { "type": "Feature",
   "geometry": {
     "type": "MultiLineString",
+    "properties": {
+    "stroke-width": "10"
+    },
     "coordinates": [
         [
             [
