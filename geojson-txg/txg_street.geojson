@@ -57,7 +57,7 @@
         "stroke":"blue",
         "__comment": "all SVG styles allowed",
         "fill": "red",
-        "stroke-width": "8",
+        "stroke-width": "50",
         "fill-opacity": 1.0
     },
     "className":{
