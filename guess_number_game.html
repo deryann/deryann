@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>猜數字遊戲</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #333;
+        }
+        
+        .game-container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+        }
+        
+        h1 {
+            color: #5a67d8;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+        
+        .rules {
+            background: #f7fafc;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            text-align: left;
+            border-left: 4px solid #5a67d8;
+        }
+        
+        .rules h3 {
+            color: #5a67d8;
+            margin-top: 0;
+        }
+        
+        .input-section {
+            margin: 30px 0;
+        }
+        
+        input {
+            font-size: 1.5em;
+            padding: 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            width: 200px;
+            text-align: center;
+            margin: 10px;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #5a67d8;
+            box-shadow: 0 0 0 3px rgba(90, 103, 216, 0.1);
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2em;
+            border-radius: 10px;
+            cursor: pointer;
+            margin: 10px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+        
+        button:disabled {
+            background: #cbd5e0;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .history {
+            margin-top: 30px;
+            text-align: left;
+        }
+        
+        .history-item {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 4px solid #e2e8f0;
+        }
+        
+        .guess-number {
+            font-weight: bold;
+            font-size: 1.2em;
+            color: #2d3748;
+        }
+        
+        .result {
+            font-weight: bold;
+        }
+        
+        .result.correct {
+            color: #38a169;
+        }
+        
+        .result.hint {
+            color: #d69e2e;
+        }
+        
+        .game-stats {
+            background: #edf2f7;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .success-message {
+            background: linear-gradient(135deg, #48bb78, #38a169);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            animation: celebration 0.6s ease-out;
+        }
+        
+        @keyframes celebration {
+            0% { transform: scale(0.8); opacity: 0; }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        .error-message {
+            color: #e53e3e;
+            background: #fed7d7;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>🎯 猜數字遊戲</h1>
+        <p class="subtitle">經典的邏輯推理遊戲</p>
+        
+        <div class="rules">
+            <h3>🎮 遊戲規則：</h3>
+            <ul>
+                <li>系統會隨機產生一個4位數字（0-9，不重複）</li>
+                <li>你需要猜出這個數字的正確順序</li>
+                <li><strong>A</strong>：數字和位置都正確的個數</li>
+                <li><strong>B</strong>：數字正確但位置錯誤的個數</li>
+                <li>當你得到 <strong>4A0B</strong> 時就獲勝了！</li>
+            </ul>
+        </div>
+        
+        <div class="game-stats">
+            <p><strong>目前猜測次數：</strong> <span id="guessCount">0</span></p>
+        </div>
+        
+        <div class="input-section">
+            <input type="text" id="guessInput" placeholder="輸入4位數字 (支援全形/半形)" maxlength="4">
+            <br>
+            <button onclick="makeGuess()">猜測</button>
+            <button onclick="newGame()">新遊戲</button>
+        </div>
+        
+        <div id="message"></div>
+        
+        <div class="history">
+            <h3>🕐 猜測記錄：</h3>
+            <div id="historyList"></div>
+        </div>
+    </div>
+
+    <script>
+        let answer = '';
+        let guessCount = 0;
+        let gameOver = false;
+        
+        // 生成隨機答案
+        function generateAnswer() {
+            let digits = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+            let result = '';
+            
+            for (let i = 0; i < 4; i++) {
+                let randomIndex = Math.floor(Math.random() * digits.length);
+                result += digits[randomIndex];
+                digits.splice(randomIndex, 1);
+            }
+            
+            return result;
+        }
+        
+        // 檢查猜測結果
+        function checkGuess(guess, answer) {
+            let A = 0; // 位置和數字都正確
+            let B = 0; // 數字正確但位置錯誤
+            
+            // 先檢查A（位置和數字都正確）
+            for (let i = 0; i < 4; i++) {
+                if (guess[i] === answer[i]) {
+                    A++;
+                }
+            }
+            
+            // 再檢查B（數字正確但位置錯誤）
+            for (let i = 0; i < 4; i++) {
+                if (guess[i] !== answer[i] && answer.includes(guess[i])) {
+                    B++;
+                }
+            }
+            
+            return { A, B };
+        }
+        
+        // 將全形數字轉換為半形數字
+        function convertToHalfWidth(str) {
+            return str.replace(/[０-９]/g, function(s) {
+                return String.fromCharCode(s.charCodeAt(0) - 0xFEE0);
+            });
+        }
+        
+        // 驗證輸入
+        function validateInput(input) {
+            // 先轉換全形數字為半形數字
+            input = convertToHalfWidth(input);
+            
+            if (input.length !== 4) {
+                return '請輸入4位數字！';
+            }
+            
+            if (!/^\d{4}$/.test(input)) {
+                return '請只輸入數字！';
+            }
+            
+            // 檢查是否有重複數字
+            let digits = input.split('');
+            let uniqueDigits = [...new Set(digits)];
+            if (uniqueDigits.length !== 4) {
+                return '數字不能重複！';
+            }
+            
+            return null;
+        }
+        
+        // 進行猜測
+        function makeGuess() {
+            if (gameOver) return;
+            
+            let input = document.getElementById('guessInput').value;
+            // 轉換全形數字為半形數字
+            input = convertToHalfWidth(input);
+            
+            let errorMsg = validateInput(input);
+            
+            if (errorMsg) {
+                showMessage(errorMsg, 'error');
+                return;
+            }
+            
+            guessCount++;
+            document.getElementById('guessCount').textContent = guessCount;
+            
+            let result = checkGuess(input, answer);
+            
+            // 添加到歷史記錄
+            addToHistory(input, result.A, result.B);
+            
+            if (result.A === 4) {
+                // 遊戲獲勝
+                gameOver = true;
+                showMessage(`🎉 恭喜你！你猜對了！答案就是 ${answer}！你總共猜了 ${guessCount} 次。`, 'success');
+            } else {
+                showMessage(`結果：${result.A}A${result.B}B，繼續加油！`, 'hint');
+            }
+            
+            // 清空輸入框
+            document.getElementById('guessInput').value = '';
+        }
+        
+        // 顯示訊息
+        function showMessage(text, type) {
+            let messageDiv = document.getElementById('message');
+            messageDiv.innerHTML = `<div class="${type === 'success' ? 'success-message' : type === 'error' ? 'error-message' : 'hint'}">${text}</div>`;
+        }
+        
+        // 添加到歷史記錄
+        function addToHistory(guess, A, B) {
+            let historyList = document.getElementById('historyList');
+            let historyItem = document.createElement('div');
+            historyItem.className = 'history-item';
+            
+            let resultText = A === 4 ? '🎉 正確！' : `${A}A${B}B`;
+            let resultClass = A === 4 ? 'correct' : 'hint';
+            
+            historyItem.innerHTML = `
+                <span class="guess-number">${guess}</span>
+                <span class="result ${resultClass}">${resultText}</span>
+            `;
+            
+            historyList.appendChild(historyItem);
+        }
+        
+        // 開始新遊戲
+        function newGame() {
+            answer = generateAnswer();
+            guessCount = 0;
+            gameOver = false;
+            
+            document.getElementById('guessCount').textContent = '0';
+            document.getElementById('guessInput').value = '';
+            document.getElementById('message').innerHTML = '';
+            document.getElementById('historyList').innerHTML = '';
+            
+            console.log('新遊戲開始！答案是：' + answer); // 僅供測試用
+        }
+        
+        // 監聽Enter鍵
+        document.getElementById('guessInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                makeGuess();
+            }
+        });
+        
+        // 開始遊戲
+        newGame();
+    </script>
+</body>
+</html>
