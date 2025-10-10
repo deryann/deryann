@@ -1,0 +1,242 @@
+:root {
+  font-family: Helvetica, Arial, 'Noto Sans TC', 'Microsoft JhengHei', sans-serif;
+  font-size: 16pt;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: #f0f2f5;
+  padding: 20px;
+}
+
+/* 對話框樣式 */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  min-width: 400px;
+  max-width: 500px;
+}
+
+.modal-content h2 {
+  margin-bottom: 20px;
+  font-size: 1.3rem;
+  color: #333;
+}
+
+/* 表單樣式 */
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #444;
+}
+
+.form-control {
+  width: 100%;
+  padding: 10px 12px;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+  transition: border-color 0.3s;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
+/* 範圍滑桿樣式 */
+.range-slider {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.range-slider input[type="range"] {
+  flex: 1;
+  cursor: pointer;
+}
+
+#rangeDisplay {
+  margin-left: 10px;
+  color: #2563eb;
+  font-weight: 700;
+}
+
+/* 按鈕樣式 */
+.btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  background: #e5e7eb;
+  color: #333;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn-primary {
+  background: #2563eb;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #1d4ed8;
+}
+
+.btn-warning {
+  background: #f59e0b;
+  color: white;
+}
+
+.btn-warning:hover {
+  background: #d97706;
+}
+
+/* 測驗視窗樣式 */
+.test-window {
+  max-width: 600px;
+  margin: 0 auto;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.test-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 30px;
+  text-align: center;
+}
+
+.test-header h1 {
+  font-size: 1.8rem;
+  margin-bottom: 10px;
+}
+
+.test-info {
+  font-size: 0.9rem;
+  opacity: 0.95;
+}
+
+.test-content {
+  padding: 30px;
+}
+
+.input-group {
+  margin-bottom: 20px;
+}
+
+.input-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #444;
+}
+
+.progress-info {
+  margin-bottom: 25px;
+  padding: 15px;
+  background: #f9fafb;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+#progressText {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #2563eb;
+}
+
+#statsText {
+  font-size: 0.95rem;
+  color: #666;
+}
+
+.button-group {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.button-group button:first-child {
+  grid-column: 1 / -1;
+}
+
+/* 結果對話框樣式 */
+.result-content {
+  text-align: center;
+  min-width: 350px;
+}
+
+.result-content img {
+  max-width: 150px;
+  margin-bottom: 20px;
+  border-radius: 8px;
+}
+
+.result-message {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 25px;
+  color: #333;
+  line-height: 1.6;
+}
+
+/* 響應式設計 */
+@media (max-width: 600px) {
+  .modal-content {
+    min-width: 90%;
+    margin: 20px;
+  }
+  
+  .test-window {
+    margin: 0;
+    border-radius: 0;
+  }
+  
+  .button-group {
+    grid-template-columns: 1fr;
+  }
+  
+  .button-group button:first-child {
+    grid-column: 1;
+  }
+}

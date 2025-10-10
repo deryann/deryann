@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>英文單字拼字測驗系統</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- 設定對話框 -->
+  <div id="setupDialog" class="modal">
+    <div class="modal-content">
+      <h2>選擇設定</h2>
+      <div class="form-group">
+        <label for="userSelect">請選擇一個名字：</label>
+        <select id="userSelect" class="form-control">
+          <option value="">-- 請選擇 --</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="testSelect">測驗卷：</label>
+        <select id="testSelect" class="form-control">
+          <option value="">-- 請選擇 --</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label>題目範圍：<span id="rangeDisplay">1 - 130</span></label>
+        <div class="range-slider">
+          <input type="range" id="rangeStart" min="1" max="130" value="1" />
+          <input type="range" id="rangeEnd" min="1" max="130" value="130" />
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label>
+          <input type="checkbox" id="randomCheck" />
+          亂數 20 題
+        </label>
+      </div>
+      
+      <button id="startBtn" class="btn btn-primary">開始測驗</button>
+    </div>
+  </div>
+
+  <!-- 測驗主畫面 -->
+  <div id="testWindow" class="test-window" style="display: none;">
+    <div class="test-header">
+      <h1 id="testTitle">Word Test</h1>
+      <p id="testInfo" class="test-info"></p>
+    </div>
+    
+    <div class="test-content">
+      <div class="input-group">
+        <label for="answerInput">輸入拼字：</label>
+        <input type="text" id="answerInput" class="form-control" 
+               autocomplete="off" placeholder="請輸入你聽到的單字" />
+      </div>
+      
+      <div id="progressInfo" class="progress-info">
+        <span id="progressText">0/0</span>
+        <span id="statsText">Correct: 0, Wrong: 0</span>
+      </div>
+      
+      <div class="button-group">
+        <button id="submitBtn" class="btn btn-primary">送出</button>
+        <button id="replay1Btn" class="btn">重新播放1</button>
+        <button id="replay2Btn" class="btn">重新播放2</button>
+        <button id="retestBtn" class="btn btn-warning">重新測試</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 結果對話框 -->
+  <div id="resultDialog" class="modal" style="display: none;">
+    <div class="modal-content result-content">
+      <img id="resultImage" src="" alt="" style="display: none;" />
+      <p id="resultMessage" class="result-message"></p>
+      <button id="resultOkBtn" class="btn btn-primary">確定</button>
+    </div>
+  </div>
+
+  <!-- 音效 -->
+  <audio id="yesSound" src="yes.wav" preload="auto"></audio>
+  <audio id="noSound" src="no.wav" preload="auto"></audio>
+
+  <script src="app.js"></script>
+</body>
+</html>
