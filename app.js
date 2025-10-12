@@ -397,6 +397,17 @@ function formatTime(date) {
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 }
 
+// 格式化時間用於檔名
+function formatTimeForFilename(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  return `${year}${month}${day}_${hours}${minutes}${seconds}`;
+}
+
 // 儲存 log
 function saveLog() {
   const logContent = logEntries.join('\n');
@@ -404,7 +415,8 @@ function saveLog() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `testing_${currentTestName}_${currentUser}.log`;
+  const timestamp = formatTimeForFilename(new Date());
+  a.download = `testing_${currentTestName}_${currentUser}_${timestamp}.log`;
   a.click();
   URL.revokeObjectURL(url);
 }
