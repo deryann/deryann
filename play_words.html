@@ -81,6 +81,24 @@
     </div>
   </div>
 
+  <!-- 考試結果對話框 -->
+  <div id="finalResultDialog" class="modal" style="display: none;">
+    <div class="modal-content final-result-content">
+      <h2>測驗結果</h2>
+      <div class="result-summary">
+        <p id="finalStats"></p>
+        <p id="finalTime"></p>
+      </div>
+      <div class="result-words-container">
+        <div id="resultWordsList" class="result-words-list"></div>
+      </div>
+      <div class="result-buttons">
+        <button id="saveLogBtn" class="btn btn-primary">儲存log</button>
+        <button id="closeResultBtn" class="btn btn-warning">關閉</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 音效 -->
   <audio id="yesSound" src="yes.wav" preload="auto"></audio>
   <audio id="noSound" src="no.wav" preload="auto"></audio>
