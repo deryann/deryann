@@ -13,11 +13,13 @@ let availableVoices = [];
 let voice1 = null;
 let voice2 = null;
 let logEntries = [];
+let testResults = []; // 記錄每個單字的測驗結果
 
 // DOM 元素
 const setupDialog = document.getElementById('setupDialog');
 const testWindow = document.getElementById('testWindow');
 const resultDialog = document.getElementById('resultDialog');
+const finalResultDialog = document.getElementById('finalResultDialog');
 const userSelect = document.getElementById('userSelect');
 const testSelect = document.getElementById('testSelect');
 const rangeStart = document.getElementById('rangeStart');
@@ -37,6 +39,11 @@ const retestBtn = document.getElementById('retestBtn');
 const resultImage = document.getElementById('resultImage');
 const resultMessage = document.getElementById('resultMessage');
 const resultOkBtn = document.getElementById('resultOkBtn');
+const finalStats = document.getElementById('finalStats');
+const finalTime = document.getElementById('finalTime');
+const resultWordsList = document.getElementById('resultWordsList');
+const saveLogBtn = document.getElementById('saveLogBtn');
+const closeResultBtn = document.getElementById('closeResultBtn');
 const yesSound = document.getElementById('yesSound');
 const noSound = document.getElementById('noSound');
 
@@ -177,6 +184,7 @@ function startTest() {
   wrongCount = 0;
   startTime = new Date();
   logEntries = [];
+  testResults = []; // 重置測驗結果
   
   // 記錄測驗開始
   addLog(`=== 測驗開始 ===`);
@@ -287,6 +295,13 @@ function checkAnswer() {
   // 檢查答案 (精確比對，區分大小寫)
   const isCorrect = userAnswer === correctAnswer;
   
+  // 記錄測驗結果
+  testResults.push({
+    word: correctAnswer,
+    isCorrect: isCorrect,
+    userAnswer: userAnswer
+  });
+  
   if (isCorrect) {
     correctCount++;
     yesSound.play();
@@ -355,15 +370,27 @@ function showFinalResult() {
   addLog(`總時間: ${totalTime} 秒`);
   addLog(`正確: ${correctCount}, 錯誤: ${wrongCount}`);
   
-  // 儲存 log
-  saveLog();
-  
-  // 顯示總結果
-  alert(`Total Result\n\nCorrect: ${correctCount}, Wrong: ${wrongCount}\nTotal time: ${totalTime} 秒`);
-  
-  // 重置回設定畫面
+  // 隱藏測驗視窗
   testWindow.style.display = 'none';
-  setupDialog.style.display = 'flex';
+  
+  // 顯示結果統計
+  finalStats.textContent = `正確: ${correctCount} 題, 錯誤: ${wrongCount} 題`;
+  finalTime.textContent = `總時間: ${totalTime} 秒`;
+  
+  // 顯示單字結果列表
+  resultWordsList.innerHTML = '';
+  testResults.forEach(result => {
+    const wordDiv = document.createElement('div');
+    wordDiv.className = `result-word ${result.isCorrect ? 'correct' : 'wrong'}`;
+    wordDiv.textContent = result.word;
+    if (!result.isCorrect) {
+      wordDiv.title = `你的答案: ${result.userAnswer}`;
+    }
+    resultWordsList.appendChild(wordDiv);
+  });
+  
+  // 顯示結果對話框
+  finalResultDialog.style.display = 'flex';
 }
 
 // 重新播放按鈕
@@ -418,4 +445,16 @@ document.addEventListener('click', function initOnce() {
     speechSynthesis.getVoices();
   }
   document.removeEventListener('click', initOnce);
+});
+
+// 儲存 log 按鈕
+saveLogBtn.addEventListener('click', () => {
+  saveLog();
+  alert('Log 已儲存！');
+});
+
+// 關閉結果對話框按鈕
+closeResultBtn.addEventListener('click', () => {
+  finalResultDialog.style.display = 'none';
+  setupDialog.style.display = 'flex';
 });
