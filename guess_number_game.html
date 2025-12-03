@@ -49,6 +49,28 @@
             --button-disabled: #4a5568;
         }
         
+        body.teal-mode {
+            /* Teal/Blue-Green Mode Colors */
+            --bg-gradient-start: #d4e4d8;
+            --bg-gradient-end: #bde5c8;
+            --container-bg: #f5f9f6;
+            --container-shadow: rgba(147, 191, 199, 0.2);
+            --text-primary: #2d4a3d;
+            --text-secondary: #5a7a6a;
+            --heading-color: #93BFC7;
+            --rules-bg: #e8f4ee;
+            --rules-border: #93BFC7;
+            --input-border: #a8d5ba;
+            --input-focus-shadow: rgba(147, 191, 199, 0.2);
+            --history-bg: #e8f4ee;
+            --history-border: #93BFC7;
+            --history-text: #2d4a3d;
+            --stats-bg: #d4e8dc;
+            --button-gradient-start: #7bb5a8;
+            --button-gradient-end: #93BFC7;
+            --button-disabled: #c5d9cf;
+        }
+        
         body {
             font-family: 'Arial', sans-serif;
             background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
@@ -79,12 +101,14 @@
             right: 20px;
             background: var(--button-gradient-start);
             border: none;
-            border-radius: 50px;
-            padding: 10px 15px;
+            border-radius: 8px;
+            padding: 8px 12px;
             cursor: pointer;
-            font-size: 1.2em;
+            font-size: 0.95em;
             transition: transform 0.2s, box-shadow 0.2s;
             box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            color: white;
+            font-weight: 500;
         }
         
         .theme-toggle:hover {
@@ -244,7 +268,11 @@
 </head>
 <body>
     <div class="game-container">
-        <button class="theme-toggle" onclick="toggleTheme()" title="切換主題">🌓</button>
+        <select class="theme-toggle" onchange="changeTheme(this.value)" title="選擇主題">
+            <option value="light">☀️ 亮色</option>
+            <option value="dark">🌙 暗色</option>
+            <option value="teal">🌊 藍綠</option>
+        </select>
         <h1>🎯 猜數字遊戲</h1>
         <p class="subtitle">經典的邏輯推理遊戲</p>
         
@@ -284,30 +312,34 @@
         let gameOver = false;
         
         // 主題切換功能
-        function toggleTheme() {
+        function changeTheme(theme) {
             const body = document.body;
-            const themeButton = document.querySelector('.theme-toggle');
             
-            if (body.classList.contains('dark-mode')) {
-                body.classList.remove('dark-mode');
-                themeButton.textContent = '🌓';
-                localStorage.setItem('theme', 'light');
-            } else {
+            // Remove all theme classes
+            body.classList.remove('dark-mode', 'teal-mode');
+            
+            // Add the selected theme class
+            if (theme === 'dark') {
                 body.classList.add('dark-mode');
-                themeButton.textContent = '☀️';
-                localStorage.setItem('theme', 'dark');
+            } else if (theme === 'teal') {
+                body.classList.add('teal-mode');
             }
+            // 'light' is the default, no class needed
+            
+            // Save theme to localStorage
+            localStorage.setItem('theme', theme);
         }
         
         // 載入保存的主題設定
         function loadTheme() {
-            const savedTheme = localStorage.getItem('theme');
-            const themeButton = document.querySelector('.theme-toggle');
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            const themeSelect = document.querySelector('.theme-toggle');
             
-            if (savedTheme === 'dark') {
-                document.body.classList.add('dark-mode');
-                themeButton.textContent = '☀️';
-            }
+            // Set the dropdown value
+            themeSelect.value = savedTheme;
+            
+            // Apply the theme
+            changeTheme(savedTheme);
         }
         
         // 生成隨機答案
