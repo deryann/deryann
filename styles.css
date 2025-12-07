@@ -289,6 +289,306 @@ body {
   max-width: 200px;
 }
 
+/* 設定按鈕組 */
+.setup-buttons {
+  display: flex;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.setup-buttons .btn {
+  flex: 1;
+}
+
+/* 老師模式按鈕 */
+.btn-teacher {
+  background: #0d9488;
+  color: white;
+}
+
+.btn-teacher:hover {
+  background: #0f766e;
+}
+
+/* 老師模式視窗 */
+.teacher-mode-window {
+  max-width: 1200px;
+  margin: 0 auto;
+  background: #f0fdfa;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  min-height: 100vh;
+}
+
+.teacher-header {
+  background: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%);
+  color: white;
+  padding: 20px 30px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 15px;
+}
+
+.teacher-header h1 {
+  font-size: 1.5rem;
+  margin-right: auto;
+}
+
+.teacher-info {
+  font-size: 0.9rem;
+  opacity: 0.95;
+  flex-basis: 100%;
+  order: 3;
+}
+
+.teacher-header-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.teacher-header-buttons .btn {
+  padding: 8px 16px;
+  font-size: 0.9rem;
+}
+
+/* 單字卡片容器 */
+.word-cards-container {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 15px;
+  padding: 20px;
+}
+
+/* 單字卡片 */
+.word-card {
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  padding: 15px;
+  border: 2px solid transparent;
+  transition: all 0.3s;
+}
+
+.word-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.word-card.correct {
+  border-color: #10b981;
+  background: #f0fdf4;
+}
+
+.word-card.wrong {
+  border-color: #ef4444;
+  background: #fef2f2;
+}
+
+.word-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.word-card-number {
+  background: #0d9488;
+  color: white;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.word-card-word {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.word-card-buttons {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.play-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px;
+  background: #e0f2fe;
+  border: 2px solid #0ea5e9;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 0.9rem;
+  color: #0369a1;
+  font-weight: 600;
+}
+
+.play-btn:hover {
+  background: #bae6fd;
+}
+
+.play-btn:active {
+  transform: scale(0.98);
+}
+
+.play-count {
+  background: #0ea5e9;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  min-width: 24px;
+  text-align: center;
+}
+
+.word-card-radios {
+  display: flex;
+  gap: 15px;
+  padding-top: 10px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.radio-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.radio-option input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.radio-option.correct-option {
+  color: #059669;
+}
+
+.radio-option.wrong-option {
+  color: #dc2626;
+}
+
+/* 老師模式總結對話框 */
+.teacher-result-content {
+  min-width: 500px;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.teacher-result-content h2 {
+  text-align: center;
+  color: #0d9488;
+  margin-bottom: 20px;
+}
+
+.teacher-stats {
+  background: #f0fdfa;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.teacher-stats p {
+  margin: 8px 0;
+  font-size: 1rem;
+  color: #333;
+}
+
+.teacher-stats .stat-highlight {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #0d9488;
+}
+
+.teacher-word-details-container {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  flex: 1;
+}
+
+.teacher-word-details {
+  padding: 10px;
+}
+
+.teacher-word-item {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  border-bottom: 1px solid #e5e7eb;
+  gap: 15px;
+}
+
+.teacher-word-item:last-child {
+  border-bottom: none;
+}
+
+.teacher-word-item .word-number {
+  font-weight: 600;
+  color: #0d9488;
+  min-width: 40px;
+}
+
+.teacher-word-item .word-text {
+  flex: 1;
+  font-weight: 600;
+  color: #333;
+}
+
+.teacher-word-item .play-counts {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.teacher-word-item .word-status {
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.teacher-word-item .word-status.correct {
+  background: #10b981;
+  color: white;
+}
+
+.teacher-word-item .word-status.wrong {
+  background: #ef4444;
+  color: white;
+}
+
+.teacher-word-item .word-status.unanswered {
+  background: #9ca3af;
+  color: white;
+}
+
+.teacher-result-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.teacher-result-buttons .btn {
+  flex: 1;
+  max-width: 200px;
+}
+
 /* 響應式設計 */
 @media (max-width: 600px) {
   .modal-content {
@@ -307,5 +607,61 @@ body {
   
   .button-group button:first-child {
     grid-column: 1;
+  }
+
+  .setup-buttons {
+    flex-direction: column;
+  }
+
+  .teacher-header {
+    padding: 15px;
+  }
+
+  .teacher-header h1 {
+    font-size: 1.2rem;
+  }
+
+  .teacher-header-buttons {
+    width: 100%;
+  }
+
+  .teacher-header-buttons .btn {
+    flex: 1;
+  }
+
+  .teacher-result-content {
+    min-width: 90%;
+    margin: 10px;
+  }
+
+  .teacher-word-item {
+    flex-wrap: wrap;
+  }
+
+  .teacher-word-item .play-counts {
+    flex-basis: 100%;
+    order: 3;
+    margin-top: 5px;
+  }
+}
+
+/* 平板響應式 (768px+) */
+@media (min-width: 768px) {
+  .word-cards-container {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* 電腦響應式 (1024px+) */
+@media (min-width: 1024px) {
+  .word-cards-container {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* 大螢幕響應式 (1280px+) */
+@media (min-width: 1280px) {
+  .word-cards-container {
+    grid-template-columns: repeat(4, 1fr);
   }
 }

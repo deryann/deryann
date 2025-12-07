@@ -40,7 +40,10 @@
         </label>
       </div>
       
-      <button id="startBtn" class="btn btn-primary">開始測驗</button>
+      <div class="setup-buttons">
+        <button id="startBtn" class="btn btn-primary">開始測驗</button>
+        <button id="teacherModeBtn" class="btn btn-teacher">老師模式</button>
+      </div>
     </div>
   </div>
 
@@ -95,6 +98,40 @@
       <div class="result-buttons">
         <button id="saveLogBtn" class="btn btn-primary">儲存log</button>
         <button id="closeResultBtn" class="btn btn-warning">關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 老師模式視窗 -->
+  <div id="teacherModeWindow" class="teacher-mode-window" style="display: none;">
+    <div class="teacher-header">
+      <h1>老師模式</h1>
+      <p id="teacherInfo" class="teacher-info"></p>
+      <div class="teacher-header-buttons">
+        <button id="teacherSummaryBtn" class="btn btn-teacher">總結成績</button>
+        <button id="teacherExitBtn" class="btn btn-warning">結束模式</button>
+      </div>
+    </div>
+    <div id="wordCardsContainer" class="word-cards-container">
+      <!-- 動態生成的單字卡片 -->
+    </div>
+  </div>
+
+  <!-- 老師模式總結對話框 -->
+  <div id="teacherResultDialog" class="modal" style="display: none;">
+    <div class="modal-content teacher-result-content">
+      <h2>考試結果總結</h2>
+      <div id="teacherStats" class="teacher-stats">
+        <!-- 統計摘要 -->
+      </div>
+      <div class="teacher-word-details-container">
+        <div id="teacherWordDetails" class="teacher-word-details">
+          <!-- 每個單字的詳細資訊 -->
+        </div>
+      </div>
+      <div class="teacher-result-buttons">
+        <button id="exportReportBtn" class="btn btn-teacher">匯出報告</button>
+        <button id="closeTeacherResultBtn" class="btn btn-warning">關閉</button>
       </div>
     </div>
   </div>
