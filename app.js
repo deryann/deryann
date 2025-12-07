@@ -15,6 +15,11 @@ let voice2 = null;
 let logEntries = [];
 let testResults = []; // 記錄每個單字的測驗結果
 
+// 老師模式變數
+let isTeacherMode = false;
+let teacherModeData = []; // 記錄每個單字的狀態
+let teacherStartTime = null;
+
 // DOM 元素
 const setupDialog = document.getElementById('setupDialog');
 const testWindow = document.getElementById('testWindow');
@@ -46,6 +51,19 @@ const saveLogBtn = document.getElementById('saveLogBtn');
 const closeResultBtn = document.getElementById('closeResultBtn');
 const yesSound = document.getElementById('yesSound');
 const noSound = document.getElementById('noSound');
+
+// 老師模式 DOM 元素
+const teacherModeBtn = document.getElementById('teacherModeBtn');
+const teacherModeWindow = document.getElementById('teacherModeWindow');
+const teacherInfo = document.getElementById('teacherInfo');
+const wordCardsContainer = document.getElementById('wordCardsContainer');
+const teacherSummaryBtn = document.getElementById('teacherSummaryBtn');
+const teacherExitBtn = document.getElementById('teacherExitBtn');
+const teacherResultDialog = document.getElementById('teacherResultDialog');
+const teacherStats = document.getElementById('teacherStats');
+const teacherWordDetails = document.getElementById('teacherWordDetails');
+const exportReportBtn = document.getElementById('exportReportBtn');
+const closeTeacherResultBtn = document.getElementById('closeTeacherResultBtn');
 
 // 初始化
 async function init() {
@@ -470,3 +488,269 @@ closeResultBtn.addEventListener('click', () => {
   finalResultDialog.style.display = 'none';
   setupDialog.style.display = 'flex';
 });
+
+// ============================================
+// 老師模式功能
+// ============================================
+
+// 老師模式按鈕事件
+teacherModeBtn.addEventListener('click', startTeacherMode);
+
+// 開始老師模式
+function startTeacherMode() {
+  // 驗證選擇
+  if (!testSelect.value) {
+    alert('請選擇測驗卷！');
+    return;
+  }
+
+  currentTestName = testSelect.value;
+  isTeacherMode = true;
+  teacherStartTime = new Date();
+
+  // 準備題目清單
+  prepareWordList();
+
+  // 初始化老師模式資料
+  teacherModeData = wordList.map((item, index) => ({
+    index: index,
+    number: item.number,
+    word: item.word,
+    play1Count: 0,
+    play2Count: 0,
+    result: null // null: 未作答, 'correct': 正確, 'wrong': 錯誤
+  }));
+
+  // 更新老師模式資訊
+  teacherInfo.textContent = `測驗卷: ${currentTestName}, 題目範圍: ${rangeStart.value}~${rangeEnd.value}, 共 ${wordList.length} 題`;
+
+  // 生成單字卡片
+  generateWordCards();
+
+  // 切換視窗
+  setupDialog.style.display = 'none';
+  teacherModeWindow.style.display = 'block';
+
+  // 記錄 log
+  logEntries = [];
+  addLog(`=== 老師模式開始 ===`);
+  addLog(`測驗卷: ${currentTestName}`);
+  addLog(`題目範圍: ${rangeStart.value} - ${rangeEnd.value}`);
+  addLog(`隨機 20 題: ${randomCheck.checked ? '是' : '否'}`);
+  addLog(`題目清單: ${wordList.map(w => w.word).join(', ')}`);
+  addLog(`開始時間: ${formatTime(teacherStartTime)}`);
+}
+
+// 生成單字卡片
+function generateWordCards() {
+  wordCardsContainer.innerHTML = '';
+
+  teacherModeData.forEach((item, index) => {
+    const card = document.createElement('div');
+    card.className = 'word-card';
+    card.id = `word-card-${index}`;
+
+    card.innerHTML = `
+      <div class="word-card-header">
+        <span class="word-card-number">#${item.number}</span>
+        <span class="word-card-word">${item.word}</span>
+      </div>
+      <div class="word-card-buttons">
+        <button class="play-btn" onclick="playTeacherWord(${index}, 0)">
+          發音1 <span class="play-count" id="play1-count-${index}">0</span>
+        </button>
+        <button class="play-btn" onclick="playTeacherWord(${index}, 1)">
+          發音2 <span class="play-count" id="play2-count-${index}">0</span>
+        </button>
+      </div>
+      <div class="word-card-radios">
+        <label class="radio-option">
+          <input type="radio" name="result-${index}" value="" checked onchange="setWordResult(${index}, null)">
+          尚未作答
+        </label>
+        <label class="radio-option correct-option">
+          <input type="radio" name="result-${index}" value="correct" onchange="setWordResult(${index}, 'correct')">
+          正確
+        </label>
+        <label class="radio-option wrong-option">
+          <input type="radio" name="result-${index}" value="wrong" onchange="setWordResult(${index}, 'wrong')">
+          錯誤
+        </label>
+      </div>
+    `;
+
+    wordCardsContainer.appendChild(card);
+  });
+}
+
+// 播放老師模式單字
+function playTeacherWord(index, voiceIndex) {
+  const item = teacherModeData[index];
+  const word = item.word;
+  const voice = voiceIndex === 0 ? voice1 : voice2;
+
+  // 更新播放次數
+  if (voiceIndex === 0) {
+    item.play1Count++;
+    document.getElementById(`play1-count-${index}`).textContent = item.play1Count;
+  } else {
+    item.play2Count++;
+    document.getElementById(`play2-count-${index}`).textContent = item.play2Count;
+  }
+
+  // 播放語音
+  speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(word);
+  utterance.voice = voice;
+  utterance.lang = 'en-US';
+  utterance.rate = 0.9;
+  speechSynthesis.speak(utterance);
+
+  addLog(`老師模式播放: ${word} (發音${voiceIndex + 1}, 第${voiceIndex === 0 ? item.play1Count : item.play2Count}次)`);
+}
+
+// 設定單字結果
+function setWordResult(index, result) {
+  teacherModeData[index].result = result;
+
+  const card = document.getElementById(`word-card-${index}`);
+  card.classList.remove('correct', 'wrong');
+
+  if (result === 'correct') {
+    card.classList.add('correct');
+  } else if (result === 'wrong') {
+    card.classList.add('wrong');
+  }
+
+  addLog(`設定結果: ${teacherModeData[index].word} = ${result === null ? '未作答' : result === 'correct' ? '正確' : '錯誤'}`);
+}
+
+// 總結成績按鈕事件
+teacherSummaryBtn.addEventListener('click', showTeacherSummary);
+
+// 顯示老師模式總結
+function showTeacherSummary() {
+  const endTime = new Date();
+  const totalTime = ((endTime - teacherStartTime) / 1000).toFixed(1);
+
+  // 計算統計
+  const correctCount = teacherModeData.filter(item => item.result === 'correct').length;
+  const wrongCount = teacherModeData.filter(item => item.result === 'wrong').length;
+  const unansweredCount = teacherModeData.filter(item => item.result === null).length;
+  const totalCount = teacherModeData.length;
+  const answeredCount = correctCount + wrongCount;
+  const correctRate = answeredCount > 0 ? ((correctCount / answeredCount) * 100).toFixed(1) : 0;
+
+  // 顯示統計
+  teacherStats.innerHTML = `
+    <p>正確: <span class="stat-highlight">${correctCount}</span> 題</p>
+    <p>錯誤: <span class="stat-highlight">${wrongCount}</span> 題</p>
+    <p>未作答: <span class="stat-highlight">${unansweredCount}</span> 題</p>
+    <p>正確率: <span class="stat-highlight">${correctRate}%</span> (${correctCount}/${answeredCount})</p>
+    <p>考試時間: ${totalTime} 秒</p>
+  `;
+
+  // 顯示詳細資訊
+  teacherWordDetails.innerHTML = '';
+  teacherModeData.forEach(item => {
+    const itemDiv = document.createElement('div');
+    itemDiv.className = 'teacher-word-item';
+
+    const statusClass = item.result === 'correct' ? 'correct' :
+                        item.result === 'wrong' ? 'wrong' : 'unanswered';
+    const statusText = item.result === 'correct' ? '正確' :
+                       item.result === 'wrong' ? '錯誤' : '未作答';
+
+    itemDiv.innerHTML = `
+      <span class="word-number">#${item.number}</span>
+      <span class="word-text">${item.word}</span>
+      <span class="play-counts">發音1: ${item.play1Count}次, 發音2: ${item.play2Count}次</span>
+      <span class="word-status ${statusClass}">${statusText}</span>
+    `;
+
+    teacherWordDetails.appendChild(itemDiv);
+  });
+
+  // 記錄 log
+  addLog(`=== 老師模式總結 ===`);
+  addLog(`結束時間: ${formatTime(endTime)}`);
+  addLog(`總時間: ${totalTime} 秒`);
+  addLog(`正確: ${correctCount}, 錯誤: ${wrongCount}, 未作答: ${unansweredCount}`);
+  addLog(`正確率: ${correctRate}%`);
+
+  // 顯示對話框
+  teacherResultDialog.style.display = 'flex';
+}
+
+// 匯出報告按鈕事件
+exportReportBtn.addEventListener('click', exportTeacherReport);
+
+// 匯出老師模式報告
+function exportTeacherReport() {
+  const endTime = new Date();
+  const totalTime = ((endTime - teacherStartTime) / 1000).toFixed(1);
+
+  // 計算統計
+  const correctCount = teacherModeData.filter(item => item.result === 'correct').length;
+  const wrongCount = teacherModeData.filter(item => item.result === 'wrong').length;
+  const unansweredCount = teacherModeData.filter(item => item.result === null).length;
+  const answeredCount = correctCount + wrongCount;
+  const correctRate = answeredCount > 0 ? ((correctCount / answeredCount) * 100).toFixed(1) : 0;
+
+  // 生成報告內容
+  let reportContent = `=== 老師模式考試結果 ===\n`;
+  reportContent += `測驗卷: ${currentTestName}\n`;
+  reportContent += `題目範圍: ${rangeStart.value} - ${rangeEnd.value}\n`;
+  reportContent += `考試時間: ${formatTime(teacherStartTime)}\n`;
+  reportContent += `結束時間: ${formatTime(endTime)}\n`;
+  reportContent += `總時間: ${totalTime} 秒\n\n`;
+
+  reportContent += `【統計摘要】\n`;
+  reportContent += `- 正確: ${correctCount} 題\n`;
+  reportContent += `- 錯誤: ${wrongCount} 題\n`;
+  reportContent += `- 未作答: ${unansweredCount} 題\n`;
+  reportContent += `- 正確率: ${correctRate}%\n\n`;
+
+  reportContent += `【各單字詳情】\n`;
+  teacherModeData.forEach(item => {
+    const statusText = item.result === 'correct' ? '正確' :
+                       item.result === 'wrong' ? '錯誤' : '未作答';
+    reportContent += `#${item.number.toString().padStart(3, ' ')}  ${item.word.padEnd(15, ' ')} - 發音1: ${item.play1Count}次, 發音2: ${item.play2Count}次 - ${statusText}\n`;
+  });
+
+  reportContent += `\n【完整 Log】\n`;
+  reportContent += logEntries.join('\n');
+
+  // 下載報告
+  const blob = new Blob([reportContent], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const timestamp = formatTimeForFilename(new Date());
+  a.download = `teacher_mode_${currentTestName}_${timestamp}.log`;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  alert('報告已匯出！');
+}
+
+// 關閉老師模式總結對話框
+closeTeacherResultBtn.addEventListener('click', () => {
+  teacherResultDialog.style.display = 'none';
+});
+
+// 結束老師模式按鈕事件
+teacherExitBtn.addEventListener('click', exitTeacherMode);
+
+// 結束老師模式
+function exitTeacherMode() {
+  if (confirm('確定要結束老師模式嗎？')) {
+    addLog(`=== 老師模式結束 ===`);
+
+    isTeacherMode = false;
+    teacherModeData = [];
+    teacherModeWindow.style.display = 'none';
+    teacherResultDialog.style.display = 'none';
+    setupDialog.style.display = 'flex';
+  }
+}
