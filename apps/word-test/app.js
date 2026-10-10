@@ -4,6 +4,8 @@ let testData = {};
 let availableTests = [];
 let currentUser = '';
 let currentTestName = '';
+let selectedUser = '';
+let selectedTest = '';
 let wordList = [];
 let currentIndex = 0;
 let correctCount = 0;
@@ -14,6 +16,7 @@ let voice1 = null;
 let voice2 = null;
 let logEntries = [];
 let testResults = []; // 記錄每個單字的測驗結果
+let testInfoText = ''; // 畫面上方顯示的測驗資訊
 
 // 老師模式變數
 let isTeacherMode = false;
@@ -21,32 +24,48 @@ let teacherModeData = []; // 記錄每個單字的狀態
 let teacherStartTime = null;
 
 // DOM 元素
-const setupDialog = document.getElementById('setupDialog');
-const testWindow = document.getElementById('testWindow');
-const resultDialog = document.getElementById('resultDialog');
-const finalResultDialog = document.getElementById('finalResultDialog');
-const userSelect = document.getElementById('userSelect');
-const testSelect = document.getElementById('testSelect');
+const setupScreen = document.getElementById('setupScreen');
+const quizScreen = document.getElementById('quizScreen');
+const resultScreen = document.getElementById('resultScreen');
+const teacherScreen = document.getElementById('teacherScreen');
+const userList = document.getElementById('userList');
+const testList = document.getElementById('testList');
 const rangeStart = document.getElementById('rangeStart');
 const rangeEnd = document.getElementById('rangeEnd');
-const rangeDisplay = document.getElementById('rangeDisplay');
+const rangeTotal = document.getElementById('rangeTotal');
 const randomCheck = document.getElementById('randomCheck');
 const startBtn = document.getElementById('startBtn');
-const testTitle = document.getElementById('testTitle');
 const testInfo = document.getElementById('testInfo');
 const answerInput = document.getElementById('answerInput');
 const progressText = document.getElementById('progressText');
-const statsText = document.getElementById('statsText');
+const progressTotal = document.getElementById('progressTotal');
+const progressFill = document.getElementById('progressFill');
+const correctText = document.getElementById('correctText');
+const wrongText = document.getElementById('wrongText');
+const questionPanel = document.getElementById('questionPanel');
 const submitBtn = document.getElementById('submitBtn');
+const replayBtn = document.getElementById('replayBtn');
 const replay1Btn = document.getElementById('replay1Btn');
 const replay2Btn = document.getElementById('replay2Btn');
 const retestBtn = document.getElementById('retestBtn');
-const resultImage = document.getElementById('resultImage');
-const resultMessage = document.getElementById('resultMessage');
-const resultOkBtn = document.getElementById('resultOkBtn');
-const finalStats = document.getElementById('finalStats');
+const feedbackPanel = document.getElementById('feedbackPanel');
+const feedbackIconCorrect = document.getElementById('feedbackIconCorrect');
+const feedbackIconWrong = document.getElementById('feedbackIconWrong');
+const feedbackTitle = document.getElementById('feedbackTitle');
+const feedbackYoursBox = document.getElementById('feedbackYoursBox');
+const feedbackYours = document.getElementById('feedbackYours');
+const feedbackCorrect = document.getElementById('feedbackCorrect');
+const feedbackReplayBtn = document.getElementById('feedbackReplayBtn');
+const nextBtn = document.getElementById('nextBtn');
+const resultInfo = document.getElementById('resultInfo');
+const finalCorrect = document.getElementById('finalCorrect');
+const finalWrong = document.getElementById('finalWrong');
 const finalTime = document.getElementById('finalTime');
-const resultWordsList = document.getElementById('resultWordsList');
+const wrongSection = document.getElementById('wrongSection');
+const wrongWordsList = document.getElementById('wrongWordsList');
+const correctSection = document.getElementById('correctSection');
+const correctWordsList = document.getElementById('correctWordsList');
+const retryWrongBtn = document.getElementById('retryWrongBtn');
 const saveLogBtn = document.getElementById('saveLogBtn');
 const closeResultBtn = document.getElementById('closeResultBtn');
 const yesSound = document.getElementById('yesSound');
@@ -54,16 +73,15 @@ const noSound = document.getElementById('noSound');
 
 // 老師模式 DOM 元素
 const teacherModeBtn = document.getElementById('teacherModeBtn');
-const teacherModeWindow = document.getElementById('teacherModeWindow');
 const teacherInfo = document.getElementById('teacherInfo');
-const wordCardsContainer = document.getElementById('wordCardsContainer');
-const teacherSummaryBtn = document.getElementById('teacherSummaryBtn');
+const wordRows = document.getElementById('wordRows');
+const teacherCorrect = document.getElementById('teacherCorrect');
+const teacherWrong = document.getElementById('teacherWrong');
+const teacherPending = document.getElementById('teacherPending');
+const teacherRateLabel = document.getElementById('teacherRateLabel');
+const teacherRate = document.getElementById('teacherRate');
 const teacherExitBtn = document.getElementById('teacherExitBtn');
-const teacherResultDialog = document.getElementById('teacherResultDialog');
-const teacherStats = document.getElementById('teacherStats');
-const teacherWordDetails = document.getElementById('teacherWordDetails');
 const exportReportBtn = document.getElementById('exportReportBtn');
-const closeTeacherResultBtn = document.getElementById('closeTeacherResultBtn');
 
 // 初始化
 async function init() {
@@ -71,21 +89,34 @@ async function init() {
     // 載入使用者設定
     const configResponse = await fetch('config.json');
     appConfig = await configResponse.json();
-    
-    // 填充使用者選單
+
+    // 產生考生按鈕
     appConfig.Users.forEach(user => {
-      const option = document.createElement('option');
-      option.value = user;
-      option.textContent = user;
-      userSelect.appendChild(option);
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'user-btn';
+      button.setAttribute('aria-pressed', 'false');
+
+      const initial = document.createElement('span');
+      initial.className = 'user-initial';
+      initial.textContent = user.charAt(0).toUpperCase();
+      const name = document.createElement('span');
+      name.textContent = user;
+      button.append(initial, name);
+
+      button.addEventListener('click', () => {
+        selectedUser = user;
+        updatePressed(userList, button);
+      });
+      userList.appendChild(button);
     });
-    
+
     // 載入所有測驗卷
     await loadAvailableTests();
-    
+
     // 初始化語音
     initVoices();
-    
+
   } catch (error) {
     console.error('初始化失敗:', error);
     alert('系統初始化失敗，請確認檔案是否存在。');
@@ -103,11 +134,15 @@ async function loadAvailableTests() {
       const data = await response.json();
       testData[testName] = data;
       availableTests.push(testName);
-      
-      const option = document.createElement('option');
-      option.value = testName;
-      option.textContent = testName;
-      testSelect.appendChild(option);
+
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'chip-btn';
+      button.textContent = testName;
+      button.dataset.test = testName;
+      button.setAttribute('aria-pressed', 'false');
+      button.addEventListener('click', () => selectTest(testName));
+      testList.appendChild(button);
     } catch (error) {
       console.warn(`無法載入測驗卷: ${testName}`);
     }
@@ -115,9 +150,29 @@ async function loadAvailableTests() {
 
   // 預設選擇測驗卷，並同步更新題目範圍
   if (availableTests.includes(defaultTest)) {
-    testSelect.value = defaultTest;
-    testSelect.dispatchEvent(new Event('change'));
+    selectTest(defaultTest);
   }
+}
+
+// 更新一組按鈕的選取狀態
+function updatePressed(container, pressedButton) {
+  container.querySelectorAll('button').forEach(button => {
+    button.setAttribute('aria-pressed', button === pressedButton ? 'true' : 'false');
+  });
+}
+
+// 選擇測驗卷，並更新題目範圍
+function selectTest(testName) {
+  selectedTest = testName;
+  updatePressed(testList, testList.querySelector(`[data-test="${testName}"]`));
+
+  const data = testData[testName];
+  const maxNum = Math.max(...Object.keys(data).map(Number));
+  rangeStart.max = maxNum;
+  rangeEnd.max = maxNum;
+  rangeStart.value = 1;
+  rangeEnd.value = maxNum;
+  rangeTotal.textContent = `這份卷共 ${maxNum} 題`;
 }
 
 // 初始化語音
@@ -126,13 +181,13 @@ function initVoices() {
     alert('你的瀏覽器不支援語音合成功能。');
     return;
   }
-  
+
   // 載入語音清單
   const loadVoices = () => {
     availableVoices = speechSynthesis.getVoices();
     // 選擇英語語音
     const enVoices = availableVoices.filter(v => v.lang.startsWith('en'));
-    
+
     if (enVoices.length >= 2) {
       voice1 = enVoices[0];
       voice2 = enVoices[1];
@@ -145,64 +200,73 @@ function initVoices() {
       voice2 = availableVoices.length > 1 ? availableVoices[1] : availableVoices[0];
     }
   };
-  
+
   loadVoices();
   if (speechSynthesis.onvoiceschanged !== undefined) {
     speechSynthesis.onvoiceschanged = loadVoices;
   }
 }
 
-// 範圍滑桿更新
-rangeStart.addEventListener('input', updateRangeDisplay);
-rangeEnd.addEventListener('input', updateRangeDisplay);
+// 題目範圍欄位更新
+rangeStart.addEventListener('change', normalizeRange);
+rangeEnd.addEventListener('change', normalizeRange);
 
-function updateRangeDisplay() {
-  let start = parseInt(rangeStart.value);
-  let end = parseInt(rangeEnd.value);
-  
+function normalizeRange() {
+  const maxNum = parseInt(rangeEnd.max);
+  const clamp = (value, fallback) => {
+    const num = parseInt(value);
+    if (isNaN(num)) return fallback;
+    return Math.min(Math.max(num, 1), maxNum);
+  };
+
+  let start = clamp(rangeStart.value, 1);
+  let end = clamp(rangeEnd.value, maxNum);
+
   // 確保 start <= end
   if (start > end) {
     [start, end] = [end, start];
-    rangeStart.value = start;
-    rangeEnd.value = end;
   }
-  
-  rangeDisplay.textContent = `${start} - ${end}`;
+
+  rangeStart.value = start;
+  rangeEnd.value = end;
 }
 
-// 測驗卷選擇變更時，更新範圍
-testSelect.addEventListener('change', () => {
-  if (testSelect.value) {
-    const data = testData[testSelect.value];
-    const maxNum = Math.max(...Object.keys(data).map(Number));
-    rangeStart.max = maxNum;
-    rangeEnd.max = maxNum;
-    rangeEnd.value = maxNum;
-    updateRangeDisplay();
-  }
-});
+// 切換畫面
+function showScreen(screen) {
+  [setupScreen, quizScreen, resultScreen, teacherScreen].forEach(s => {
+    s.hidden = s !== screen;
+  });
+  window.scrollTo(0, 0);
+}
 
 // 開始測驗按鈕
 startBtn.addEventListener('click', startTest);
 
 function startTest() {
   // 驗證選擇
-  if (!userSelect.value) {
+  if (!selectedUser) {
     alert('請選擇考生名字！');
     return;
   }
-  
-  if (!testSelect.value) {
+
+  if (!selectedTest) {
     alert('請選擇測驗卷！');
     return;
   }
-  
-  currentUser = userSelect.value;
-  currentTestName = testSelect.value;
-  
+
+  normalizeRange();
+  currentUser = selectedUser;
+  currentTestName = selectedTest;
+
   // 準備題目
   prepareWordList();
-  
+  testInfoText = `${currentUser} · ${currentTestName} · ${describeRange()}`;
+
+  beginTest();
+}
+
+// 以目前的 wordList 開始一輪測驗
+function beginTest() {
   // 初始化測驗狀態
   currentIndex = 0;
   correctCount = 0;
@@ -210,7 +274,7 @@ function startTest() {
   startTime = new Date();
   logEntries = [];
   testResults = []; // 重置測驗結果
-  
+
   // 記錄測驗開始
   addLog(`=== 測驗開始 ===`);
   addLog(`考生: ${currentUser}`);
@@ -219,18 +283,23 @@ function startTest() {
   addLog(`隨機 20 題: ${randomCheck.checked ? '是' : '否'}`);
   addLog(`題目清單: ${wordList.map(w => w.word).join(', ')}`);
   addLog(`開始時間: ${formatTime(startTime)}`);
-  
+
   // 更新 UI
-  updateTestInfo();
+  testInfo.textContent = testInfoText;
   updateProgress();
-  
-  // 切換視窗
-  setupDialog.style.display = 'none';
-  testWindow.style.display = 'block';
-  answerInput.focus();
-  
+
+  // 切換畫面
+  showScreen(quizScreen);
+  showQuestion();
+
   // 播放第一個單字
   speakWord(0);
+}
+
+// 題目範圍的文字說明
+function describeRange() {
+  const range = `第 ${rangeStart.value}–${rangeEnd.value} 題`;
+  return randomCheck.checked ? `${range}隨機 20 題` : range;
 }
 
 // 準備單字清單
@@ -238,7 +307,7 @@ function prepareWordList() {
   const data = testData[currentTestName];
   const start = parseInt(rangeStart.value);
   const end = parseInt(rangeEnd.value);
-  
+
   // 篩選範圍內的單字
   let selectedWords = [];
   for (let i = start; i <= end; i++) {
@@ -249,12 +318,12 @@ function prepareWordList() {
       });
     }
   }
-  
+
   // 隨機 20 題
   if (randomCheck.checked && selectedWords.length > 20) {
     selectedWords = shuffleArray(selectedWords).slice(0, 20);
   }
-  
+
   // 隨機排序
   wordList = shuffleArray(selectedWords);
 }
@@ -269,30 +338,37 @@ function shuffleArray(array) {
   return newArray;
 }
 
-// 更新測驗資訊
-function updateTestInfo() {
-  testInfo.textContent = `考生: ${currentUser}, ${currentTestName} 測驗, 題目: ${rangeStart.value}~${rangeEnd.value}`;
-}
-
 // 更新進度
 function updateProgress() {
-  progressText.textContent = `${currentIndex + 1}/${wordList.length}`;
-  statsText.textContent = `Correct: ${correctCount}, Wrong: ${wrongCount}`;
+  const answered = correctCount + wrongCount;
+  progressText.textContent = `第 ${currentIndex + 1} 題`;
+  progressTotal.textContent = `/ ${wordList.length}`;
+  correctText.textContent = `答對 ${correctCount}`;
+  wrongText.textContent = `答錯 ${wrongCount}`;
+  progressFill.style.width = wordList.length ? `${(answered / wordList.length) * 100}%` : '0';
+}
+
+// 顯示作答區
+function showQuestion() {
+  feedbackPanel.hidden = true;
+  questionPanel.hidden = false;
+  answerInput.value = '';
+  answerInput.focus();
 }
 
 // 播放單字 (隨機選擇語音)
 function speakWord(voiceIndex = -1) {
   if (!wordList[currentIndex]) return;
-  
+
   const word = wordList[currentIndex].word;
   const voice = voiceIndex === 0 ? voice1 : voiceIndex === 1 ? voice2 : (Math.random() < 0.5 ? voice1 : voice2);
-  
+
   speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(word);
   utterance.voice = voice;
   utterance.lang = 'en-US';
   utterance.rate = 0.9;
-  
+
   addLog(`播放單字: ${word} (語音: ${voice ? voice.name : 'default'})`);
   speechSynthesis.speak(utterance);
 }
@@ -302,131 +378,231 @@ submitBtn.addEventListener('click', checkAnswer);
 answerInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {
     e.preventDefault();
-    checkAnswer();
+    if (!e.repeat) checkAnswer();
   }
 });
 
 function checkAnswer() {
   if (!wordList[currentIndex]) return;
-  
+
   const userAnswer = answerInput.value.trim();
   const correctAnswer = wordList[currentIndex].word;
-  
+
   if (!userAnswer) {
     alert('請輸入答案！');
     return;
   }
-  
+
   // 檢查答案 (精確比對，區分大小寫)
   const isCorrect = userAnswer === correctAnswer;
-  
+
   // 記錄測驗結果
   testResults.push({
+    number: wordList[currentIndex].number,
     word: correctAnswer,
     isCorrect: isCorrect,
     userAnswer: userAnswer
   });
-  
+
   if (isCorrect) {
     correctCount++;
     yesSound.play();
     addLog(`O: ${correctAnswer}`);
-    showResult(true, correctAnswer);
   } else {
     wrongCount++;
     noSound.play();
     addLog(`X: ${correctAnswer} Your answer: ${userAnswer}`);
-    showResult(false, correctAnswer);
   }
-  
+
+  showFeedback(isCorrect, correctAnswer, userAnswer);
   updateProgress();
 }
 
-// 顯示結果對話框
-function showResult(isCorrect, correctAnswer) {
-  resultDialog.style.display = 'flex';
-  
-  if (isCorrect) {
-    resultMessage.textContent = 'Correct!';
-    resultImage.src = 'r.jpg';
-  } else {
-    resultMessage.textContent = `Wrong! Correct answer is: ${correctAnswer}`;
-    resultImage.src = 'w.jpg';
+// 找出兩個字串各自不在最長共同子序列中的字元
+function diffMarks(a, b) {
+  const lcs = [];
+  for (let i = 0; i <= a.length; i++) {
+    lcs.push(new Array(b.length + 1).fill(0));
   }
-  
-  resultImage.style.display = 'block';
-  resultImage.onerror = () => {
-    resultImage.style.display = 'none';
-  };
-  
-  resultOkBtn.focus();
+  for (let i = a.length - 1; i >= 0; i--) {
+    for (let j = b.length - 1; j >= 0; j--) {
+      lcs[i][j] = a[i] === b[j] ? lcs[i + 1][j + 1] + 1 : Math.max(lcs[i + 1][j], lcs[i][j + 1]);
+    }
+  }
+
+  const marksA = new Array(a.length).fill(true);
+  const marksB = new Array(b.length).fill(true);
+  let i = 0;
+  let j = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) {
+      marksA[i++] = false;
+      marksB[j++] = false;
+    } else if (lcs[i + 1][j] >= lcs[i][j + 1]) {
+      i++;
+    } else {
+      j++;
+    }
+  }
+  return [marksA, marksB];
 }
 
-// 結果對話框確定按鈕
-resultOkBtn.addEventListener('click', closeResultDialog);
-resultOkBtn.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') {
-    closeResultDialog();
+// 顯示單字，並標出不同的字元
+function renderDiffWord(container, word, marks) {
+  container.innerHTML = '';
+  [...word].forEach((char, index) => {
+    if (marks && marks[index]) {
+      const span = document.createElement('span');
+      span.className = 'diff';
+      span.textContent = char;
+      container.appendChild(span);
+    } else {
+      container.appendChild(document.createTextNode(char));
+    }
+  });
+}
+
+// 顯示單題回饋
+function showFeedback(isCorrect, correctAnswer, userAnswer) {
+  feedbackPanel.classList.toggle('is-correct', isCorrect);
+  feedbackPanel.classList.toggle('is-wrong', !isCorrect);
+  feedbackIconCorrect.toggleAttribute('hidden', !isCorrect);
+  feedbackIconWrong.toggleAttribute('hidden', isCorrect);
+  feedbackYoursBox.hidden = isCorrect;
+
+  if (isCorrect) {
+    feedbackTitle.textContent = '答對了！';
+    renderDiffWord(feedbackCorrect, correctAnswer, null);
+  } else {
+    feedbackTitle.textContent = '答錯了，看看哪裡不一樣';
+    const [marksYours, marksCorrect] = diffMarks(userAnswer, correctAnswer);
+    renderDiffWord(feedbackYours, userAnswer, marksYours);
+    renderDiffWord(feedbackCorrect, correctAnswer, marksCorrect);
+  }
+
+  const isLast = currentIndex >= wordList.length - 1;
+  nextBtn.textContent = isLast ? '看結果' : '下一題';
+
+  questionPanel.hidden = true;
+  feedbackPanel.hidden = false;
+  nextBtn.focus();
+}
+
+// 下一題按鈕
+nextBtn.addEventListener('click', nextQuestion);
+nextBtn.addEventListener('keydown', (e) => {
+  // 避免按住 Enter 時連續跳題
+  if (e.key === 'Enter' && e.repeat) {
+    e.preventDefault();
   }
 });
 
-function closeResultDialog() {
-  resultDialog.style.display = 'none';
-  answerInput.value = '';
-  answerInput.focus();
-  
+function nextQuestion() {
   // 判斷是否為最後一題
   if (currentIndex >= wordList.length - 1) {
     showFinalResult();
   } else {
     currentIndex++;
     updateProgress();
+    showQuestion();
     speakWord();
   }
+}
+
+// 格式化經過時間
+function formatDuration(totalSeconds) {
+  const seconds = Math.round(totalSeconds);
+  const minutes = Math.floor(seconds / 60);
+  return minutes > 0 ? `${minutes} 分 ${seconds % 60} 秒` : `${seconds} 秒`;
 }
 
 // 顯示最終結果
 function showFinalResult() {
   const endTime = new Date();
   const totalTime = ((endTime - startTime) / 1000).toFixed(1);
-  
+
   addLog(`=== 測驗結束 ===`);
   addLog(`結束時間: ${formatTime(endTime)}`);
   addLog(`總時間: ${totalTime} 秒`);
   addLog(`正確: ${correctCount}, 錯誤: ${wrongCount}`);
-  
-  // 隱藏測驗視窗
-  testWindow.style.display = 'none';
-  
+
   // 顯示結果統計
-  finalStats.textContent = `正確: ${correctCount} 題, 錯誤: ${wrongCount} 題`;
-  finalTime.textContent = `總時間: ${totalTime} 秒`;
-  
+  resultInfo.textContent = testInfoText;
+  finalCorrect.textContent = correctCount;
+  finalWrong.textContent = wrongCount;
+  finalTime.textContent = formatDuration(totalTime);
+
   // 顯示單字結果列表
-  resultWordsList.innerHTML = '';
+  wrongWordsList.innerHTML = '';
+  correctWordsList.innerHTML = '';
   testResults.forEach(result => {
-    const wordDiv = document.createElement('div');
-    wordDiv.className = `result-word ${result.isCorrect ? 'correct' : 'wrong'}`;
-    wordDiv.textContent = result.word;
-    if (!result.isCorrect) {
-      wordDiv.title = `你的答案: ${result.userAnswer}`;
+    if (result.isCorrect) {
+      const chip = document.createElement('span');
+      chip.className = 'word-chip';
+      chip.textContent = result.word;
+      correctWordsList.appendChild(chip);
+    } else {
+      const item = document.createElement('div');
+      item.className = 'wrong-item';
+
+      const word = document.createElement('div');
+      word.className = 'wrong-item-word';
+      word.textContent = result.word;
+
+      const answer = document.createElement('div');
+      answer.className = 'wrong-item-answer';
+      const answerText = document.createElement('strong');
+      answerText.textContent = result.userAnswer;
+      answer.append('你寫成 ', answerText);
+
+      item.append(word, answer);
+      wrongWordsList.appendChild(item);
     }
-    resultWordsList.appendChild(wordDiv);
   });
-  
-  // 顯示結果對話框
-  finalResultDialog.style.display = 'flex';
+
+  wrongSection.hidden = wrongCount === 0;
+  correctSection.hidden = correctCount === 0;
+  retryWrongBtn.hidden = wrongCount === 0;
+  retryWrongBtn.textContent = `只重練答錯的 ${wrongCount} 個字`;
+
+  // 顯示結果畫面
+  showScreen(resultScreen);
 }
 
-// 重新播放按鈕
-replay1Btn.addEventListener('click', () => speakWord(0));
-replay2Btn.addEventListener('click', () => speakWord(1));
+// 只重練答錯的字
+retryWrongBtn.addEventListener('click', () => {
+  const wrongWords = testResults
+    .filter(result => !result.isCorrect)
+    .map(result => ({ number: result.number, word: result.word }));
+  if (wrongWords.length === 0) return;
 
-// 重新測試按鈕
+  wordList = shuffleArray(wrongWords);
+  testInfoText = `${currentUser} · ${currentTestName} · 重練答錯的 ${wrongWords.length} 個字`;
+  beginTest();
+  addLog(`=== 重練答錯的字 ===`);
+});
+
+// 重新播放按鈕
+replayBtn.addEventListener('click', () => {
+  speakWord();
+  answerInput.focus();
+});
+replay1Btn.addEventListener('click', () => {
+  speakWord(0);
+  answerInput.focus();
+});
+replay2Btn.addEventListener('click', () => {
+  speakWord(1);
+  answerInput.focus();
+});
+feedbackReplayBtn.addEventListener('click', () => speakWord());
+
+// 重新開始按鈕
 retestBtn.addEventListener('click', () => {
   if (confirm('確定要重新測試嗎？目前進度將會重置。')) {
+    wordList = shuffleArray(wordList);
+    beginTest();
     addLog(`=== 重新測試 ===`);
-    startTest();
   }
 });
 
@@ -484,16 +660,15 @@ document.addEventListener('click', function initOnce() {
   document.removeEventListener('click', initOnce);
 });
 
-// 儲存 log 按鈕
+// 儲存紀錄按鈕
 saveLogBtn.addEventListener('click', () => {
   saveLog();
   alert('Log 已儲存！');
 });
 
-// 關閉結果對話框按鈕
+// 回到設定按鈕
 closeResultBtn.addEventListener('click', () => {
-  finalResultDialog.style.display = 'none';
-  setupDialog.style.display = 'flex';
+  showScreen(setupScreen);
 });
 
 // ============================================
@@ -506,12 +681,13 @@ teacherModeBtn.addEventListener('click', startTeacherMode);
 // 開始老師模式
 function startTeacherMode() {
   // 驗證選擇
-  if (!testSelect.value) {
+  if (!selectedTest) {
     alert('請選擇測驗卷！');
     return;
   }
 
-  currentTestName = testSelect.value;
+  normalizeRange();
+  currentTestName = selectedTest;
   isTeacherMode = true;
   teacherStartTime = new Date();
 
@@ -529,14 +705,14 @@ function startTeacherMode() {
   }));
 
   // 更新老師模式資訊
-  teacherInfo.textContent = `測驗卷: ${currentTestName}, 題目範圍: ${rangeStart.value}~${rangeEnd.value}, 共 ${wordList.length} 題`;
+  teacherInfo.textContent = `${currentTestName} · ${describeRange()} · 共 ${wordList.length} 題`;
 
-  // 生成單字卡片
-  generateWordCards();
+  // 生成單字列
+  generateWordRows();
+  updateTeacherStats();
 
-  // 切換視窗
-  setupDialog.style.display = 'none';
-  teacherModeWindow.style.display = 'block';
+  // 切換畫面
+  showScreen(teacherScreen);
 
   // 記錄 log
   logEntries = [];
@@ -548,45 +724,33 @@ function startTeacherMode() {
   addLog(`開始時間: ${formatTime(teacherStartTime)}`);
 }
 
-// 生成單字卡片
-function generateWordCards() {
-  wordCardsContainer.innerHTML = '';
+// 生成單字列
+function generateWordRows() {
+  wordRows.innerHTML = '';
 
   teacherModeData.forEach((item, index) => {
-    const card = document.createElement('div');
-    card.className = 'word-card';
-    card.id = `word-card-${index}`;
+    const row = document.createElement('div');
+    row.className = 'word-row';
+    row.id = `word-row-${index}`;
 
-    card.innerHTML = `
-      <div class="word-card-header">
-        <span class="word-card-number">#${item.number}</span>
-        <span class="word-card-word">${item.word}</span>
-      </div>
-      <div class="word-card-buttons">
-        <button class="play-btn" onclick="playTeacherWord(${index}, 0)">
-          發音1 <span class="play-count" id="play1-count-${index}">0</span>
+    row.innerHTML = `
+      <div class="word-row-number">#${item.number}</div>
+      <div class="word-row-word">${item.word}</div>
+      <div class="word-row-group">
+        <button type="button" class="play-btn" aria-label="播放發音 A" onclick="playTeacherWord(${index}, 0)">
+          A · <span id="play1-count-${index}">0</span>
         </button>
-        <button class="play-btn" onclick="playTeacherWord(${index}, 1)">
-          發音2 <span class="play-count" id="play2-count-${index}">0</span>
+        <button type="button" class="play-btn" aria-label="播放發音 B" onclick="playTeacherWord(${index}, 1)">
+          B · <span id="play2-count-${index}">0</span>
         </button>
       </div>
-      <div class="word-card-radios">
-        <label class="radio-option">
-          <input type="radio" name="result-${index}" value="" checked onchange="setWordResult(${index}, null)">
-          尚未作答
-        </label>
-        <label class="radio-option correct-option">
-          <input type="radio" name="result-${index}" value="correct" onchange="setWordResult(${index}, 'correct')">
-          正確
-        </label>
-        <label class="radio-option wrong-option">
-          <input type="radio" name="result-${index}" value="wrong" onchange="setWordResult(${index}, 'wrong')">
-          錯誤
-        </label>
+      <div class="word-row-group">
+        <button type="button" class="mark-btn mark-correct" id="mark-correct-${index}" aria-pressed="false" onclick="setWordResult(${index}, 'correct')">對</button>
+        <button type="button" class="mark-btn mark-wrong" id="mark-wrong-${index}" aria-pressed="false" onclick="setWordResult(${index}, 'wrong')">錯</button>
       </div>
     `;
 
-    wordCardsContainer.appendChild(card);
+    wordRows.appendChild(row);
   });
 }
 
@@ -616,77 +780,43 @@ function playTeacherWord(index, voiceIndex) {
   addLog(`老師模式播放: ${word} (發音${voiceIndex + 1}, 第${voiceIndex === 0 ? item.play1Count : item.play2Count}次)`);
 }
 
-// 設定單字結果
+// 設定單字結果 (再按一次同一個結果會取消批改)
 function setWordResult(index, result) {
-  teacherModeData[index].result = result;
-
-  const card = document.getElementById(`word-card-${index}`);
-  card.classList.remove('correct', 'wrong');
-
-  if (result === 'correct') {
-    card.classList.add('correct');
-  } else if (result === 'wrong') {
-    card.classList.add('wrong');
+  const item = teacherModeData[index];
+  if (item.result === result) {
+    result = null;
   }
+  item.result = result;
 
-  addLog(`設定結果: ${teacherModeData[index].word} = ${result === null ? '未作答' : result === 'correct' ? '正確' : '錯誤'}`);
+  const row = document.getElementById(`word-row-${index}`);
+  row.classList.toggle('correct', result === 'correct');
+  row.classList.toggle('wrong', result === 'wrong');
+  document.getElementById(`mark-correct-${index}`).setAttribute('aria-pressed', result === 'correct' ? 'true' : 'false');
+  document.getElementById(`mark-wrong-${index}`).setAttribute('aria-pressed', result === 'wrong' ? 'true' : 'false');
+
+  updateTeacherStats();
+
+  addLog(`設定結果: ${item.word} = ${result === null ? '未作答' : result === 'correct' ? '正確' : '錯誤'}`);
 }
 
-// 總結成績按鈕事件
-teacherSummaryBtn.addEventListener('click', showTeacherSummary);
-
-// 顯示老師模式總結
-function showTeacherSummary() {
-  const endTime = new Date();
-  const totalTime = ((endTime - teacherStartTime) / 1000).toFixed(1);
-
-  // 計算統計
+// 計算老師模式統計
+function getTeacherStats() {
   const correctCount = teacherModeData.filter(item => item.result === 'correct').length;
   const wrongCount = teacherModeData.filter(item => item.result === 'wrong').length;
   const unansweredCount = teacherModeData.filter(item => item.result === null).length;
-  const totalCount = teacherModeData.length;
   const answeredCount = correctCount + wrongCount;
   const correctRate = answeredCount > 0 ? ((correctCount / answeredCount) * 100).toFixed(1) : 0;
+  return { correctCount, wrongCount, unansweredCount, answeredCount, correctRate };
+}
 
-  // 顯示統計
-  teacherStats.innerHTML = `
-    <p>正確: <span class="stat-highlight">${correctCount}</span> 題</p>
-    <p>錯誤: <span class="stat-highlight">${wrongCount}</span> 題</p>
-    <p>未作答: <span class="stat-highlight">${unansweredCount}</span> 題</p>
-    <p>正確率: <span class="stat-highlight">${correctRate}%</span> (${correctCount}/${answeredCount})</p>
-    <p>考試時間: ${totalTime} 秒</p>
-  `;
-
-  // 顯示詳細資訊
-  teacherWordDetails.innerHTML = '';
-  teacherModeData.forEach(item => {
-    const itemDiv = document.createElement('div');
-    itemDiv.className = 'teacher-word-item';
-
-    const statusClass = item.result === 'correct' ? 'correct' :
-                        item.result === 'wrong' ? 'wrong' : 'unanswered';
-    const statusText = item.result === 'correct' ? '正確' :
-                       item.result === 'wrong' ? '錯誤' : '未作答';
-
-    itemDiv.innerHTML = `
-      <span class="word-number">#${item.number}</span>
-      <span class="word-text">${item.word}</span>
-      <span class="play-counts">發音1: ${item.play1Count}次, 發音2: ${item.play2Count}次</span>
-      <span class="word-status ${statusClass}">${statusText}</span>
-    `;
-
-    teacherWordDetails.appendChild(itemDiv);
-  });
-
-  // 記錄 log
-  addLog(`=== 老師模式總結 ===`);
-  addLog(`結束時間: ${formatTime(endTime)}`);
-  addLog(`總時間: ${totalTime} 秒`);
-  addLog(`正確: ${correctCount}, 錯誤: ${wrongCount}, 未作答: ${unansweredCount}`);
-  addLog(`正確率: ${correctRate}%`);
-
-  // 顯示對話框
-  teacherResultDialog.style.display = 'flex';
+// 更新老師模式統計
+function updateTeacherStats() {
+  const stats = getTeacherStats();
+  teacherCorrect.textContent = stats.correctCount;
+  teacherWrong.textContent = stats.wrongCount;
+  teacherPending.textContent = stats.unansweredCount;
+  teacherRateLabel.textContent = `正確率（${stats.correctCount} / ${stats.answeredCount}）`;
+  teacherRate.textContent = stats.answeredCount > 0 ? `${Math.round(stats.correctRate)}%` : '–';
 }
 
 // 匯出報告按鈕事件
@@ -698,11 +828,14 @@ function exportTeacherReport() {
   const totalTime = ((endTime - teacherStartTime) / 1000).toFixed(1);
 
   // 計算統計
-  const correctCount = teacherModeData.filter(item => item.result === 'correct').length;
-  const wrongCount = teacherModeData.filter(item => item.result === 'wrong').length;
-  const unansweredCount = teacherModeData.filter(item => item.result === null).length;
-  const answeredCount = correctCount + wrongCount;
-  const correctRate = answeredCount > 0 ? ((correctCount / answeredCount) * 100).toFixed(1) : 0;
+  const { correctCount, wrongCount, unansweredCount, correctRate } = getTeacherStats();
+
+  // 記錄 log
+  addLog(`=== 老師模式總結 ===`);
+  addLog(`結束時間: ${formatTime(endTime)}`);
+  addLog(`總時間: ${totalTime} 秒`);
+  addLog(`正確: ${correctCount}, 錯誤: ${wrongCount}, 未作答: ${unansweredCount}`);
+  addLog(`正確率: ${correctRate}%`);
 
   // 生成報告內容
   let reportContent = `=== 老師模式考試結果 ===\n`;
@@ -741,11 +874,6 @@ function exportTeacherReport() {
   alert('報告已匯出！');
 }
 
-// 關閉老師模式總結對話框
-closeTeacherResultBtn.addEventListener('click', () => {
-  teacherResultDialog.style.display = 'none';
-});
-
 // 結束老師模式按鈕事件
 teacherExitBtn.addEventListener('click', exitTeacherMode);
 
@@ -756,8 +884,6 @@ function exitTeacherMode() {
 
     isTeacherMode = false;
     teacherModeData = [];
-    teacherModeWindow.style.display = 'none';
-    teacherResultDialog.style.display = 'none';
-    setupDialog.style.display = 'flex';
+    showScreen(setupScreen);
   }
 }
