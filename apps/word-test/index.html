@@ -4,137 +4,217 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>英文單字拼字測驗系統</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&family=Noto+Sans+TC:wght@400;500;700&display=swap" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <!-- 設定對話框 -->
-  <div id="setupDialog" class="modal">
-    <div class="modal-content">
-      <h2>選擇設定</h2>
-      <div class="form-group">
-        <label for="userSelect">請選擇一個名字：</label>
-        <select id="userSelect" class="form-control">
-          <option value="">-- 請選擇 --</option>
-        </select>
-      </div>
-      
-      <div class="form-group">
-        <label for="testSelect">測驗卷：</label>
-        <select id="testSelect" class="form-control">
-          <option value="">-- 請選擇 --</option>
-        </select>
-      </div>
-      
-      <div class="form-group">
-        <label>題目範圍：<span id="rangeDisplay">1 - 130</span></label>
-        <div class="range-slider">
-          <input type="range" id="rangeStart" min="1" max="130" value="1" />
-          <input type="range" id="rangeEnd" min="1" max="130" value="130" />
+  <!-- 設定畫面 -->
+  <main id="setupScreen" class="screen">
+    <div class="container">
+      <header class="page-header">
+        <p class="eyebrow">英文單字聽拼</p>
+        <h1>今天要練哪一份？</h1>
+      </header>
+
+      <section class="section">
+        <h2>誰要練習</h2>
+        <div id="userList" class="user-list">
+          <!-- 動態生成的考生按鈕 -->
         </div>
-      </div>
-      
-      <div class="form-group">
-        <label>
+      </section>
+
+      <section class="section">
+        <h2>測驗卷</h2>
+        <div id="testList" class="chip-list">
+          <!-- 動態生成的測驗卷按鈕 -->
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>題目範圍</h2>
+          <span id="rangeTotal" class="muted"></span>
+        </div>
+        <div class="range-row">
+          <label for="rangeStart">從第</label>
+          <input type="number" id="rangeStart" class="num-input" min="1" max="130" value="1" inputmode="numeric" />
+          <label for="rangeEnd">題 到第</label>
+          <input type="number" id="rangeEnd" class="num-input" min="1" max="130" value="130" inputmode="numeric" />
+          <span>題</span>
+        </div>
+        <div class="check-row">
           <input type="checkbox" id="randomCheck" />
-          亂數 20 題
-        </label>
-      </div>
-      
-      <div class="setup-buttons">
-        <button id="startBtn" class="btn btn-primary">開始測驗</button>
-        <button id="teacherModeBtn" class="btn btn-teacher">老師模式</button>
-      </div>
-    </div>
-  </div>
+          <label for="randomCheck">從範圍內隨機抽 20 題</label>
+        </div>
+      </section>
 
-  <!-- 測驗主畫面 -->
-  <div id="testWindow" class="test-window" style="display: none;">
-    <div class="test-header">
-      <h1 id="testTitle">Word Test</h1>
-      <p id="testInfo" class="test-info"></p>
-    </div>
-    
-    <div class="test-content">
-      <div class="input-group">
-        <label for="answerInput">輸入拼字：</label>
-        <input type="text" id="answerInput" class="form-control" 
-               autocomplete="off" placeholder="請輸入你聽到的單字" />
-      </div>
-      
-      <div id="progressInfo" class="progress-info">
-        <span id="progressText">0/0</span>
-        <span id="statsText">Correct: 0, Wrong: 0</span>
-      </div>
-      
-      <div class="button-group">
-        <button id="submitBtn" class="btn btn-primary">送出</button>
-        <button id="replay1Btn" class="btn">重新播放1</button>
-        <button id="replay2Btn" class="btn">重新播放2</button>
-        <button id="retestBtn" class="btn btn-warning">重新測試</button>
+      <div class="actions">
+        <button id="startBtn" class="btn btn-primary btn-lg">開始測驗</button>
+        <button id="teacherModeBtn" class="btn btn-text">老師模式：由大人播放發音並批改</button>
       </div>
     </div>
-  </div>
+  </main>
 
-  <!-- 結果對話框 -->
-  <div id="resultDialog" class="modal" style="display: none;">
-    <div class="modal-content result-content">
-      <img id="resultImage" src="" alt="" style="display: none;" />
-      <p id="resultMessage" class="result-message"></p>
-      <button id="resultOkBtn" class="btn btn-primary">確定</button>
-    </div>
-  </div>
+  <!-- 作答畫面 -->
+  <main id="quizScreen" class="screen" hidden>
+    <div class="container">
+      <div class="top-line">
+        <span id="testInfo" class="muted"></span>
+        <button id="retestBtn" class="btn btn-text btn-quiet">重新開始</button>
+      </div>
 
-  <!-- 考試結果對話框 -->
-  <div id="finalResultDialog" class="modal" style="display: none;">
-    <div class="modal-content final-result-content">
-      <h2>測驗結果</h2>
-      <div class="result-summary">
-        <p id="finalStats"></p>
-        <p id="finalTime"></p>
-      </div>
-      <div class="result-words-container">
-        <div id="resultWordsList" class="result-words-list"></div>
-      </div>
-      <div class="result-buttons">
-        <button id="saveLogBtn" class="btn btn-primary">儲存log</button>
-        <button id="closeResultBtn" class="btn btn-warning">關閉</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 老師模式視窗 -->
-  <div id="teacherModeWindow" class="teacher-mode-window" style="display: none;">
-    <div class="teacher-header">
-      <h1>老師模式</h1>
-      <p id="teacherInfo" class="teacher-info"></p>
-      <div class="teacher-header-buttons">
-        <button id="teacherSummaryBtn" class="btn btn-teacher">總結成績</button>
-        <button id="teacherExitBtn" class="btn btn-warning">結束模式</button>
-      </div>
-    </div>
-    <div id="wordCardsContainer" class="word-cards-container">
-      <!-- 動態生成的單字卡片 -->
-    </div>
-  </div>
-
-  <!-- 老師模式總結對話框 -->
-  <div id="teacherResultDialog" class="modal" style="display: none;">
-    <div class="modal-content teacher-result-content">
-      <h2>考試結果總結</h2>
-      <div id="teacherStats" class="teacher-stats">
-        <!-- 統計摘要 -->
-      </div>
-      <div class="teacher-word-details-container">
-        <div id="teacherWordDetails" class="teacher-word-details">
-          <!-- 每個單字的詳細資訊 -->
+      <div class="progress">
+        <div class="progress-head">
+          <div class="progress-count">
+            <span id="progressText"></span>
+            <span id="progressTotal" class="muted"></span>
+          </div>
+          <div class="score">
+            <span id="correctText" class="score-correct"></span>
+            <span id="wrongText" class="score-wrong"></span>
+          </div>
+        </div>
+        <div class="progress-bar">
+          <div id="progressFill" class="progress-fill"></div>
         </div>
       </div>
-      <div class="teacher-result-buttons">
-        <button id="exportReportBtn" class="btn btn-teacher">匯出報告</button>
-        <button id="closeTeacherResultBtn" class="btn btn-warning">關閉</button>
+
+      <!-- 作答區 -->
+      <section id="questionPanel" class="card quiz-card">
+        <button id="replayBtn" class="speaker-btn" aria-label="再聽一次">
+          <svg viewBox="0 0 24 24" width="72" height="72" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z" /><path d="M15.5 8.5a5 5 0 0 1 0 7" /><path d="M18.5 5.5a9 9 0 0 1 0 13" /></svg>
+        </button>
+        <p class="hint">聽不清楚？按喇叭再聽一次，或換一個聲音</p>
+        <div class="voice-row">
+          <button id="replay1Btn" class="btn btn-outline btn-pill">聲音 A</button>
+          <button id="replay2Btn" class="btn btn-outline btn-pill">聲音 B</button>
+        </div>
+        <div class="answer-field">
+          <label for="answerInput">把聽到的單字拼出來</label>
+          <input type="text" id="answerInput" class="answer-input"
+                 autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
+        </div>
+        <button id="submitBtn" class="btn btn-primary btn-lg btn-block">送出答案</button>
+        <p class="muted small">也可以按 Enter 送出</p>
+      </section>
+
+      <!-- 單題回饋 -->
+      <section id="feedbackPanel" class="card feedback-card" hidden>
+        <div class="feedback-head">
+          <span class="feedback-icon">
+            <svg id="feedbackIconCorrect" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+            <svg id="feedbackIconWrong" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+          </span>
+          <h1 id="feedbackTitle"></h1>
+        </div>
+        <div class="compare">
+          <div id="feedbackYoursBox" class="compare-box compare-yours">
+            <div class="compare-label">你的答案</div>
+            <div id="feedbackYours" class="compare-word"></div>
+          </div>
+          <div class="compare-box compare-correct">
+            <div class="compare-label">正確拼法</div>
+            <div id="feedbackCorrect" class="compare-word"></div>
+          </div>
+        </div>
+        <div class="feedback-actions">
+          <button id="feedbackReplayBtn" class="btn btn-outline btn-lg">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z" /><path d="M15.5 8.5a5 5 0 0 1 0 7" /></svg>
+            <span>再聽一次</span>
+          </button>
+          <button id="nextBtn" class="btn btn-primary btn-lg">下一題</button>
+        </div>
+        <p class="muted small center">也可以按 Enter 到下一題</p>
+      </section>
+    </div>
+  </main>
+
+  <!-- 測驗結果畫面 -->
+  <main id="resultScreen" class="screen" hidden>
+    <div class="container">
+      <header class="page-header">
+        <p id="resultInfo" class="eyebrow eyebrow-muted"></p>
+        <h1>測驗完成</h1>
+      </header>
+
+      <div class="stat-grid stat-grid-3">
+        <div class="stat stat-correct">
+          <div class="stat-label">答對</div>
+          <div id="finalCorrect" class="stat-value"></div>
+        </div>
+        <div class="stat stat-wrong">
+          <div class="stat-label">答錯</div>
+          <div id="finalWrong" class="stat-value"></div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">用時</div>
+          <div id="finalTime" class="stat-value stat-value-text"></div>
+        </div>
+      </div>
+
+      <section id="wrongSection" class="section">
+        <h2>需要再練的字</h2>
+        <div id="wrongWordsList" class="wrong-list"></div>
+      </section>
+
+      <section id="correctSection" class="section">
+        <h2>答對的字</h2>
+        <div id="correctWordsList" class="chip-list"></div>
+      </section>
+
+      <div class="actions">
+        <button id="retryWrongBtn" class="btn btn-primary btn-lg"></button>
+        <div class="action-pair">
+          <button id="saveLogBtn" class="btn btn-outline">儲存紀錄</button>
+          <button id="closeResultBtn" class="btn btn-outline">回到設定</button>
+        </div>
       </div>
     </div>
-  </div>
+  </main>
+
+  <!-- 老師模式畫面 -->
+  <main id="teacherScreen" class="screen screen-flush" hidden>
+    <header class="teacher-header">
+      <div class="teacher-header-inner">
+        <div>
+          <h1>老師模式</h1>
+          <p id="teacherInfo" class="teacher-info"></p>
+        </div>
+        <div class="teacher-header-buttons">
+          <button id="exportReportBtn" class="btn btn-on-dark-outline">匯出報告</button>
+          <button id="teacherExitBtn" class="btn btn-on-dark">結束</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="container container-wide">
+      <div class="stat-grid stat-grid-auto">
+        <div class="stat stat-correct">
+          <div class="stat-label">答對</div>
+          <div id="teacherCorrect" class="stat-value"></div>
+        </div>
+        <div class="stat stat-wrong">
+          <div class="stat-label">答錯</div>
+          <div id="teacherWrong" class="stat-value"></div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">還沒批改</div>
+          <div id="teacherPending" class="stat-value"></div>
+        </div>
+        <div class="stat">
+          <div id="teacherRateLabel" class="stat-label">正確率</div>
+          <div id="teacherRate" class="stat-value"></div>
+        </div>
+      </div>
+
+      <div id="wordRows" class="word-rows">
+        <!-- 動態生成的單字列 -->
+      </div>
+      <p class="muted small">A、B 是兩種發音，數字是已播放次數。再按一次「對」或「錯」可以取消批改。</p>
+    </div>
+  </main>
 
   <!-- 音效 -->
   <audio id="yesSound" src="yes.wav" preload="auto"></audio>
