@@ -94,8 +94,9 @@ async function init() {
 
 // 載入可用的測驗卷
 async function loadAvailableTests() {
-  const testFiles = ['1A', '1AAll', '1ARS', '2AAll', '2AReading', '2AScience', 'AL'];
-  
+  const testFiles = ['1A', '1AAll', '1ARS', '2AAll', '2AReading', '2AScience', '3AAll', 'AL'];
+  const defaultTest = '3AAll';
+
   for (const testName of testFiles) {
     try {
       const response = await fetch(`cfg/${testName}.json`);
@@ -110,6 +111,12 @@ async function loadAvailableTests() {
     } catch (error) {
       console.warn(`無法載入測驗卷: ${testName}`);
     }
+  }
+
+  // 預設選擇測驗卷，並同步更新題目範圍
+  if (availableTests.includes(defaultTest)) {
+    testSelect.value = defaultTest;
+    testSelect.dispatchEvent(new Event('change'));
   }
 }
 
