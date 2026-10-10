@@ -1,0 +1,5 @@
+{
+    "Users": ["Vic", "Ethan"],
+    "Tests": ["1A", "1AAll", "1ARS", "2AAll", "2AReading", "2AScience", "3AAll", "AL"],
+    "DefaultTest": "3AAll"
+}

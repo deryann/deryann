@@ -69,7 +69,7 @@ const closeTeacherResultBtn = document.getElementById('closeTeacherResultBtn');
 async function init() {
   try {
     // 載入使用者設定
-    const configResponse = await fetch('app_cfg.json');
+    const configResponse = await fetch('config.json');
     appConfig = await configResponse.json();
     
     // 填充使用者選單
@@ -94,12 +94,12 @@ async function init() {
 
 // 載入可用的測驗卷
 async function loadAvailableTests() {
-  const testFiles = ['1A', '1AAll', '1ARS', '2AAll', '2AReading', '2AScience', '3AAll', 'AL'];
-  const defaultTest = '3AAll';
+  const testFiles = appConfig.Tests;
+  const defaultTest = appConfig.DefaultTest;
 
   for (const testName of testFiles) {
     try {
-      const response = await fetch(`cfg/${testName}.json`);
+      const response = await fetch(`papers/${testName}.json`);
       const data = await response.json();
       testData[testName] = data;
       availableTests.push(testName);
