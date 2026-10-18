@@ -178,6 +178,7 @@ function selectTest(testName) {
 // 初始化語音
 function initVoices() {
   if (!('speechSynthesis' in window)) {
+    renderVoiceInfo(null);
     alert('你的瀏覽器不支援語音合成功能。');
     return;
   }
@@ -199,12 +200,130 @@ function initVoices() {
       voice1 = availableVoices[0];
       voice2 = availableVoices.length > 1 ? availableVoices[1] : availableVoices[0];
     }
+
+    renderVoiceInfo(enVoices);
   };
 
   loadVoices();
   if (speechSynthesis.onvoiceschanged !== undefined) {
     speechSynthesis.onvoiceschanged = loadVoices;
   }
+}
+
+// 偵測瀏覽器與作業系統
+function detectBrowser() {
+  const ua = navigator.userAgent;
+  let os = '其他系統';
+  // iPadOS 13 以後會偽裝成 Mac，用觸控點數判斷
+  const isIPadOS = /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
+  if (/iPhone|iPad|iPod/.test(ua) || isIPadOS) os = 'iOS / iPadOS';
+  else if (/Android/.test(ua)) os = 'Android';
+  else if (/Windows/.test(ua)) os = 'Windows';
+  else if (/Macintosh|Mac OS X/.test(ua)) os = 'macOS';
+  else if (/CrOS/.test(ua)) os = 'ChromeOS';
+  else if (/Linux/.test(ua)) os = 'Linux';
+
+  let name = '未知瀏覽器';
+  let key = 'other';
+  if (os === 'iOS / iPadOS') {
+    // iOS 上所有瀏覽器都使用 Safari 的 WebKit 核心與系統語音
+    if (/CriOS/.test(ua)) name = 'Chrome';
+    else if (/FxiOS/.test(ua)) name = 'Firefox';
+    else if (/EdgiOS/.test(ua)) name = 'Edge';
+    else name = 'Safari';
+    key = 'ios';
+  } else if (/Edg\//.test(ua)) { name = 'Microsoft Edge'; key = 'edge'; }
+  else if (/OPR\/|Opera/.test(ua)) { name = 'Opera'; key = 'opera'; }
+  else if (/SamsungBrowser/.test(ua)) { name = 'Samsung Internet'; key = 'samsung'; }
+  else if (/Firefox\//.test(ua)) { name = 'Firefox'; key = 'firefox'; }
+  else if (/Chrome\//.test(ua)) { name = 'Google Chrome'; key = 'chrome'; }
+  else if (/Safari\//.test(ua)) { name = 'Safari'; key = 'safari'; }
+
+  return { name, key, os };
+}
+
+// 各瀏覽器預期會有的英文聲音說明
+function getVoiceExpectation(browser) {
+  const isMobile = browser.os === 'Android' || browser.os === 'iOS / iPadOS';
+  switch (browser.key) {
+    case 'edge':
+      return isMobile
+        ? '手機版 Edge 使用手機內建的語音引擎，英文聲音通常只有 1～數種。'
+        : 'Edge 除了系統內建聲音，還有微軟線上「自然」聲音，英文聲音通常有 20 種以上（需連網）。';
+    case 'chrome':
+      if (browser.os === 'Android') {
+        return 'Android 版 Chrome 使用手機的文字轉語音引擎，英文聲音通常只有 1～數種，可到手機「設定 › 文字轉語音」下載更多。';
+      }
+      return 'Chrome 內建 3 種 Google 英文聲音（US English、UK English Female、UK English Male，需連網），再加上系統內建聲音'
+        + (browser.os === 'Windows' ? '（Windows 通常 2～3 種，例如 David、Zira、Mark）' : '')
+        + '，合計大約 4～6 種以上。';
+    case 'firefox':
+      return 'Firefox 只使用作業系統內建的聲音：Windows 通常 2～3 種英文聲音，macOS 較多，Linux 可能只有 0～1 種。';
+    case 'safari':
+      return 'Safari 使用 macOS 內建聲音，英文聲音通常有 10 種以上（例如 Samantha、Daniel、Karen）。';
+    case 'ios':
+      return 'iPhone / iPad 上的瀏覽器都使用系統內建聲音，英文聲音通常有 10 種以上，可到「設定 › 輔助使用 › 朗讀內容 › 聲音」下載更多。';
+    case 'opera':
+      return 'Opera 沒有 Google 線上聲音，只使用作業系統內建聲音，英文通常 2～3 種。';
+    case 'samsung':
+      return 'Samsung Internet 使用手機的文字轉語音引擎，英文聲音通常只有 1～數種。';
+    default:
+      return '聲音數量依瀏覽器和作業系統而定。建議使用 Chrome 或 Edge，可以有較多英文聲音。';
+  }
+}
+
+// 在首頁顯示瀏覽器與聲音說明
+// enVoices 為 null 代表瀏覽器不支援語音合成
+function renderVoiceInfo(enVoices) {
+  const browser = detectBrowser();
+  const browserInfo = document.getElementById('browserInfo');
+  const voiceExpect = document.getElementById('voiceExpect');
+  const voiceStatus = document.getElementById('voiceStatus');
+  const voiceList = document.getElementById('voiceList');
+  const badge = document.getElementById('voiceCountBadge');
+  if (!browserInfo) return;
+
+  browserInfo.textContent = `目前的瀏覽器：${browser.name}（${browser.os}）`;
+  voiceExpect.textContent = getVoiceExpectation(browser);
+  voiceList.innerHTML = '';
+  voiceStatus.className = 'voice-line';
+
+  if (enVoices === null) {
+    badge.textContent = '不支援';
+    badge.dataset.state = 'bad';
+    voiceStatus.textContent = '這個瀏覽器不支援語音合成，無法播放單字發音，請改用 Chrome、Edge 或 Safari。';
+    voiceStatus.classList.add('voice-bad');
+    return;
+  }
+
+  badge.textContent = `偵測到 ${enVoices.length} 種英文聲音`;
+  if (enVoices.length >= 2) {
+    badge.dataset.state = 'good';
+    voiceStatus.textContent = '測驗時的「聲音 A」「聲音 B」會使用下列前兩種不同的聲音。';
+  } else if (enVoices.length === 1) {
+    badge.dataset.state = 'warn';
+    voiceStatus.textContent = '只有 1 種英文聲音，「聲音 A」和「聲音 B」聽起來會一樣。';
+    voiceStatus.classList.add('voice-warn');
+  } else {
+    badge.dataset.state = 'warn';
+    voiceStatus.textContent = availableVoices.length === 0
+      ? '還沒取得聲音清單，有些瀏覽器要等一下或點一下頁面才會載入。'
+      : '沒有找到英文聲音，會改用預設聲音，發音可能不是英文。';
+    voiceStatus.classList.add('voice-warn');
+  }
+
+  enVoices.forEach((v, i) => {
+    const li = document.createElement('li');
+    const tag = i === 0 ? '聲音 A' : i === 1 ? '聲音 B' : '';
+    if (tag) {
+      const t = document.createElement('span');
+      t.className = 'voice-tag';
+      t.textContent = tag;
+      li.appendChild(t);
+    }
+    li.appendChild(document.createTextNode(`${v.name}（${v.lang}）`));
+    voiceList.appendChild(li);
+  });
 }
 
 // 題目範圍欄位更新
