@@ -179,6 +179,7 @@ function selectTest(testName) {
 function initVoices() {
   if (!('speechSynthesis' in window)) {
     renderVoiceInfo(null);
+    updateVoiceTooltips();
     alert('你的瀏覽器不支援語音合成功能。');
     return;
   }
@@ -202,6 +203,7 @@ function initVoices() {
     }
 
     renderVoiceInfo(enVoices);
+    updateVoiceTooltips();
   };
 
   loadVoices();
@@ -209,6 +211,39 @@ function initVoices() {
     speechSynthesis.onvoiceschanged = loadVoices;
   }
 }
+
+// 說明聲音 A（index 0）或聲音 B（index 1）實際使用的語音
+function describeVoice(index) {
+  if (!('speechSynthesis' in window)) return '這個瀏覽器不支援語音合成';
+  const voice = index === 0 ? voice1 : voice2;
+  if (!voice) return '聲音清單還沒載入，會先用瀏覽器預設聲音';
+  let text = `${voice.name}（${voice.lang}）`;
+  if (index === 1 && voice === voice1) text += '，與聲音 A 相同';
+  return text;
+}
+
+// 更新所有聲音按鈕的 tooltip 與無障礙標籤
+function updateVoiceTooltips() {
+  document.querySelectorAll('[data-voice-index]').forEach(button => {
+    const tip = describeVoice(Number(button.dataset.voiceIndex));
+    button.dataset.tooltip = tip;
+    button.setAttribute('aria-label', `${button.dataset.voiceLabel}：${tip}`);
+  });
+}
+
+// 觸控裝置沒有 hover，點按聲音按鈕時短暫顯示 tooltip
+let tooltipTimer = null;
+document.addEventListener('pointerdown', event => {
+  if (event.pointerType === 'mouse') return;
+  const button = event.target.closest('[data-tooltip]');
+  document.querySelectorAll('.tip-visible').forEach(el => {
+    if (el !== button) el.classList.remove('tip-visible');
+  });
+  if (!button) return;
+  button.classList.add('tip-visible');
+  clearTimeout(tooltipTimer);
+  tooltipTimer = setTimeout(() => button.classList.remove('tip-visible'), 2500);
+});
 
 // 偵測瀏覽器與作業系統
 function detectBrowser() {
@@ -856,10 +891,10 @@ function generateWordRows() {
       <div class="word-row-number">#${item.number}</div>
       <div class="word-row-word">${item.word}</div>
       <div class="word-row-group">
-        <button type="button" class="play-btn" aria-label="播放發音 A" onclick="playTeacherWord(${index}, 0)">
+        <button type="button" class="play-btn" data-voice-index="0" data-voice-label="播放發音 A" aria-label="播放發音 A" onclick="playTeacherWord(${index}, 0)">
           A · <span id="play1-count-${index}">0</span>
         </button>
-        <button type="button" class="play-btn" aria-label="播放發音 B" onclick="playTeacherWord(${index}, 1)">
+        <button type="button" class="play-btn" data-voice-index="1" data-voice-label="播放發音 B" aria-label="播放發音 B" onclick="playTeacherWord(${index}, 1)">
           B · <span id="play2-count-${index}">0</span>
         </button>
       </div>
@@ -871,6 +906,8 @@ function generateWordRows() {
 
     wordRows.appendChild(row);
   });
+
+  updateVoiceTooltips();
 }
 
 // 播放老師模式單字
