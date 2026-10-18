@@ -288,6 +288,64 @@ input {
   gap: 8px;
 }
 
+/* 瀏覽器與聲音說明 */
+.voice-line {
+  font-size: 1rem;
+}
+
+.voice-badge {
+  padding: 2px 12px;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  background: var(--bg);
+  color: var(--muted);
+}
+
+.voice-badge[data-state="good"] {
+  background: var(--correct-tint);
+  color: var(--correct-ink);
+}
+
+.voice-badge[data-state="warn"],
+.voice-badge[data-state="bad"] {
+  background: var(--wrong-tint);
+  color: var(--wrong-ink);
+}
+
+.voice-warn,
+.voice-bad {
+  color: var(--wrong-ink);
+  font-weight: 700;
+}
+
+.voice-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 180px;
+  overflow-y: auto;
+  font-size: 0.9375rem;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.voice-list:empty {
+  display: none;
+}
+
+.voice-tag {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: var(--primary);
+  color: #FFFFFF;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
 .range-row {
   display: flex;
   flex-wrap: wrap;
