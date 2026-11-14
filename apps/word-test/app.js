@@ -1138,18 +1138,29 @@ function playTeacherWord(index, voiceIndex) {
 
 // 念出老師模式的單字並累計播放次數、寫入 log（手動與自動播放共用）
 // onEnd：念完（或出錯）時呼叫，自動播放靠它接續下一個階段
-function speakTeacherWord(index, voiceIndex, { onEnd = null, source = '老師模式播放' } = {}) {
+// onStart：真的開始念時呼叫，自動播放從這時起算保險時間
+// repeat：暫停後繼續而重念同一個聲音，不再累計次數也不寫 log
+function speakTeacherWord(index, voiceIndex, { onEnd = null, onStart = null, repeat = false, source = '老師模式播放' } = {}) {
   const item = teacherModeData[index];
   const word = item.word;
   const voice = voiceIndex === 0 ? voice1 : voice2;
 
   // 更新播放次數
-  if (voiceIndex === 0) {
-    item.play1Count++;
-    document.getElementById(`play1-count-${index}`).textContent = item.play1Count;
-  } else {
-    item.play2Count++;
-    document.getElementById(`play2-count-${index}`).textContent = item.play2Count;
+  if (!repeat) {
+    if (voiceIndex === 0) {
+      item.play1Count++;
+      document.getElementById(`play1-count-${index}`).textContent = item.play1Count;
+    } else {
+      item.play2Count++;
+      document.getElementById(`play2-count-${index}`).textContent = item.play2Count;
+    }
+    addLog(`${source}: ${word} (發音${voiceIndex + 1}, 第${voiceIndex === 0 ? item.play1Count : item.play2Count}次)`);
+  }
+
+  // 瀏覽器不支援語音合成：念不出來，直接當作念完讓自動播放往下走
+  if (!hasSpeechSynthesis()) {
+    if (onEnd) onEnd();
+    return;
   }
 
   // 播放語音
@@ -1162,11 +1173,19 @@ function speakTeacherWord(index, voiceIndex, { onEnd = null, source = '老師模
     utterance.onend = onEnd;
     utterance.onerror = onEnd;
   }
+  if (onStart) utterance.onstart = onStart;
   // 留住參考，避免部分瀏覽器把還在念的 utterance 回收掉而不送 onend
   currentTeacherUtterance = utterance;
   speechSynthesis.speak(utterance);
+}
 
-  addLog(`${source}: ${word} (發音${voiceIndex + 1}, 第${voiceIndex === 0 ? item.play1Count : item.play2Count}次)`);
+function hasSpeechSynthesis() {
+  return 'speechSynthesis' in window;
+}
+
+// 停掉正在念的語音（不支援語音合成時什麼都不做）
+function cancelTeacherSpeech() {
+  if (hasSpeechSynthesis()) speechSynthesis.cancel();
 }
 
 // ============================================
@@ -1175,39 +1194,43 @@ function speakTeacherWord(index, voiceIndex, { onEnd = null, source = '老師模
 
 const AUTO_PHASE_LABELS = { A: '念 A', gap: '間隔', B: '念 B', answer: '作答時間' };
 
-// 讀取秒數設定：整數、最小 0，不合法時用預設值
-function readSecondsInput(input, fallback) {
-  const value = Math.floor(Number(input.value));
-  if (input.value.trim() === '' || !Number.isFinite(value) || value < 0) return fallback;
-  return value;
+// 秒數輸入欄的預設值與上限都以 auto-play.js 為準
+autoGapSeconds.defaultValue = String(AutoPlay.DEFAULT_GAP_SECONDS);
+autoAnswerSeconds.defaultValue = String(AutoPlay.DEFAULT_ANSWER_SECONDS);
+autoGapSeconds.max = String(AutoPlay.MAX_SECONDS);
+autoAnswerSeconds.max = String(AutoPlay.MAX_SECONDS);
+
+// 讀取秒數設定：0～上限的整數，不合法時用預設值
+function readSecondsInput(input) {
+  return AutoPlay.parseSeconds(input.value, Number(input.defaultValue));
 }
 
 // 離開輸入欄時把數字整理成合法值
-function normalizeSecondsInput(input, fallback) {
-  input.value = String(readSecondsInput(input, fallback));
+function normalizeSecondsInput(input) {
+  input.value = String(readSecondsInput(input));
 }
 
-autoGapSeconds.addEventListener('change', () => normalizeSecondsInput(autoGapSeconds, 2));
-autoAnswerSeconds.addEventListener('change', () => normalizeSecondsInput(autoAnswerSeconds, 15));
+autoGapSeconds.addEventListener('change', () => normalizeSecondsInput(autoGapSeconds));
+autoAnswerSeconds.addEventListener('change', () => normalizeSecondsInput(autoAnswerSeconds));
 
 // 為每次進入老師模式建立一個新的自動播放器
 function createTeacherAutoPlayer() {
   return AutoPlay.createAutoPlayer({
     total: teacherModeData.length,
-    getGapSeconds: () => readSecondsInput(autoGapSeconds, 2),
-    getAnswerSeconds: () => readSecondsInput(autoAnswerSeconds, 15),
-    speak: (index, voiceIndex, done) => speakTeacherWord(index, voiceIndex, { onEnd: done, source: '自動播放' }),
-    cancelSpeech: () => speechSynthesis.cancel(),
-    // onend 沒送來時的保險時間：依單字長度估算，寧可長一點
+    getGapSeconds: () => readSecondsInput(autoGapSeconds),
+    getAnswerSeconds: () => readSecondsInput(autoAnswerSeconds),
+    speak: (index, voiceIndex, done, { onStart, repeat }) =>
+      speakTeacherWord(index, voiceIndex, { onEnd: done, onStart, repeat, source: '自動播放' }),
+    cancelSpeech: cancelTeacherSpeech,
+    // onend 沒送來時的保險時間：從開始念（onstart）起算，依單字長度估算，寧可長一點
     speechTimeoutMs: index => 4000 + teacherModeData[index].word.length * 300,
+    // 線上語音可能要先載入，送出後最多等 10 秒讓它開始念
+    speechStartTimeoutMs: 10000,
     now: () => Date.now(),
     setTimer: (fn, ms) => setTimeout(fn, ms),
     clearTimer: id => clearTimeout(id),
     onChange: renderAutoPlay,
-    onFinish: () => {
-      addLog('自動播放完畢');
-      autoPlayStatus.textContent = '播放完畢！再按「開始」會從第一題重新播放';
-    },
+    onFinish: () => addLog('自動播放完畢'),
   });
 }
 
@@ -1253,7 +1276,7 @@ function stopAutoPlay() {
 
 // 依自動播放狀態更新控制列、進度條與目前題目列
 function renderAutoPlay(state) {
-  const { status, index, phase, total } = state;
+  const { status, index, total } = state;
   const active = status === 'playing' || status === 'paused';
 
   autoStartBtn.textContent = status === 'stopped' ? '繼續' : '開始';
@@ -1266,6 +1289,7 @@ function renderAutoPlay(state) {
   else if (status === 'paused') autoPlayStatus.textContent = '已暫停';
   else if (status === 'stopped') autoPlayStatus.textContent = `已停止，按「繼續」從第 ${index + 1} 題念 A 開始`;
   else if (status === 'idle') autoPlayStatus.textContent = '按「開始」從第一題播放';
+  else if (status === 'finished') autoPlayStatus.textContent = '播放完畢！再按「開始」會從第一題重新播放';
 
   // 整體進度
   const shown = status === 'idle' ? 0 : status === 'finished' ? total : index + 1;
@@ -1277,12 +1301,13 @@ function renderAutoPlay(state) {
 
   renderAutoPlayPhase(state);
 
-  // 播放中才需要每 0.1 秒更新倒數
-  if (status === 'playing' && !autoPlayTicker) {
+  // 只有休息階段（間隔、作答時間）在倒數，才需要每 0.1 秒更新
+  const counting = status === 'playing' && state.remainingMs !== null;
+  if (counting && !autoPlayTicker) {
     autoPlayTicker = setInterval(() => {
       if (autoPlayer) renderAutoPlayPhase(autoPlayer.getState());
     }, 100);
-  } else if (status !== 'playing') {
+  } else if (!counting) {
     clearAutoPlayTicker();
   }
 }
@@ -1333,7 +1358,7 @@ function clearAutoPlayTicker() {
 function disposeAutoPlay() {
   stopAutoPlay();
   clearAutoPlayTicker();
-  speechSynthesis.cancel();
+  cancelTeacherSpeech();
   currentTeacherUtterance = null;
   autoPlayer = null;
   autoPlayHighlightedIndex = -1;

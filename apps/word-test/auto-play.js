@@ -3,8 +3,10 @@
 (function (root) {
   function createAutoPlayer(options) {
     const { total, speak, cancelSpeech, getGapSeconds, getAnswerSeconds, now, setTimer, clearTimer } = options;
-    // 每次念單字最多等多久（毫秒），超過就當作念完
+    // 語音開始念（onstart）之後最多等多久（毫秒），超過就當作念完
     const speechTimeoutMs = options.speechTimeoutMs || (() => 10000);
+    // 送出語音後等它開始念最多等多久（線上語音可能要先載入），沒等到 onstart 也當作念完
+    const speechStartTimeoutMs = options.speechStartTimeoutMs ?? 10000;
     let status = 'idle'; // idle | playing | paused | stopped | finished
     let index = 0;
     let phase = null;    // A | gap | B | answer
@@ -28,7 +30,8 @@
     }
 
     // resumeTiming：暫停後繼續時傳入 { durationMs, remainingMs }，休息階段只倒數剩下的時間
-    function enterPhase(nextPhase, resumeTiming) {
+    // isResume：暫停後回到同一個階段；念單字階段會重念，但告訴呼叫端這是重念（不再計次）
+    function enterPhase(nextPhase, resumeTiming, isResume = false) {
       clearPending();
       phase = nextPhase;
       durationMs = null;
@@ -39,13 +42,20 @@
 
       if (phase === 'A' || phase === 'B') {
         // 念完才進入休息階段；有些瀏覽器在 cancel() 後不會送 onend，所以另設保險計時器
+        // （先等語音開始，開始後再依單字長度等它念完）
         const done = () => {
           if (!isCurrent()) return;
           enterPhase(phase === 'A' ? 'gap' : 'answer');
         };
-        timer = setTimer(done, speechTimeoutMs(index));
+        timer = setTimer(done, speechStartTimeoutMs);
+        // 真的開始念了才依單字長度起算保險時間
+        const onStart = () => {
+          if (!isCurrent()) return;
+          if (timer !== null) clearTimer(timer);
+          timer = setTimer(done, speechTimeoutMs(index));
+        };
         notify();
-        speak(index, phase === 'A' ? 0 : 1, done);
+        speak(index, phase === 'A' ? 0 : 1, done, { onStart, repeat: isResume });
         return;
       }
 
@@ -80,7 +90,7 @@
     }
 
     function finish() {
-      clearPending();
+      halt(); // 播完就不該再有聲音
       status = 'finished';
       phase = null;
       notify();
@@ -120,9 +130,9 @@
       if (status !== 'paused') return;
       status = 'playing';
       if (pausedRemainingMs !== null) {
-        enterPhase(phase, { durationMs, remainingMs: pausedRemainingMs });
+        enterPhase(phase, { durationMs, remainingMs: pausedRemainingMs }, true);
       } else {
-        enterPhase(phase);
+        enterPhase(phase, null, true);
       }
     }
 
@@ -144,7 +154,20 @@
     return { start, pause, resume, stop, restart, getState };
   }
 
-  const api = { createAutoPlayer };
+  // 秒數設定的預設值與上限（畫面上的輸入欄也從這裡取值）
+  const DEFAULT_GAP_SECONDS = 2;
+  const DEFAULT_ANSWER_SECONDS = 15;
+  const MAX_SECONDS = 600;
+
+  // 把輸入的秒數整理成 0～MAX_SECONDS 的整數；空白或不合法時用 fallback
+  function parseSeconds(raw, fallback) {
+    const text = String(raw ?? '').trim();
+    const value = Math.floor(Number(text));
+    if (text === '' || !Number.isFinite(value) || value < 0) return fallback;
+    return Math.min(value, MAX_SECONDS);
+  }
+
+  const api = { createAutoPlayer, parseSeconds, DEFAULT_GAP_SECONDS, DEFAULT_ANSWER_SECONDS, MAX_SECONDS };
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = api;

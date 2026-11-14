@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const { createAutoPlayer } = require('../auto-play.js');
 
 // 假的時鐘與語音：手動推進時間、手動讓語音念完
-function createHarness({ total = 3, gap = 2, answer = 15, speechTimeoutMs = 10000, onChange } = {}) {
+function createHarness({ total = 3, gap = 2, answer = 15, speechTimeoutMs = 10000, speechStartTimeoutMs, onChange } = {}) {
   let now = 0;
   let nextId = 1;
   const timers = new Map(); // id -> { at, fn }
@@ -16,13 +16,14 @@ function createHarness({ total = 3, gap = 2, answer = 15, speechTimeoutMs = 1000
     total,
     getGapSeconds: () => settings.gap,
     getAnswerSeconds: () => settings.answer,
-    speak(index, voiceIndex, done) {
-      spoken.push({ index, voiceIndex, done });
+    speak(index, voiceIndex, done, { onStart, repeat } = {}) {
+      spoken.push({ index, voiceIndex, done, onStart, repeat });
     },
     cancelSpeech() {
       events.push('cancelSpeech');
     },
     speechTimeoutMs: () => speechTimeoutMs,
+    speechStartTimeoutMs,
     onFinish: () => events.push('finish'),
     onChange,
     now: () => now,
@@ -136,6 +137,7 @@ test('播放完畢後再按開始，等同重新播放，從第一題開始', ()
 test('語音一直沒有回報念完時，等到保險時間後照樣往下走', () => {
   const h = createHarness({ gap: 2, speechTimeoutMs: 8000 });
   h.player.start();
+  h.spoken[0].onStart();
   h.advance(7999);
   assert.equal(h.player.getState().phase, 'A');
   h.advance(1);
@@ -267,4 +269,87 @@ test('重新播放從第一題開始，舊一輪的語音念完也不會影響�
   assert.equal(h.player.getState().phase, 'A');
   assert.equal(h.player.getState().index, 0);
   assert.deepEqual(h.said(), ['0A', '0B', '1A', '0A']);
+});
+
+test('念單字時暫停再繼續，重念同一個聲音時標記為重念（不重複計次）', () => {
+  const h = createHarness();
+  h.player.start();
+  assert.equal(h.spoken[0].repeat, false);
+  h.player.pause();
+  h.player.resume();
+  assert.deepEqual(h.said(), ['0A', '0A']);
+  assert.equal(h.spoken[1].repeat, true);
+  h.player.pause();
+  h.player.start();          // 暫停中按開始等同繼續，也是重念
+  assert.equal(h.spoken[2].repeat, true);
+});
+
+test('進入新的念單字階段（含停止後繼續、重新播放）都算新的一次', () => {
+  const h = createHarness();
+  h.player.start();
+  h.finishSpeech();
+  h.advance(2000);           // 念 B
+  assert.equal(h.spoken[1].repeat, false);
+  h.player.stop();
+  h.player.start();          // 停止後繼續：從念 A 開始，算新的一次
+  assert.equal(h.spoken[2].repeat, false);
+  h.player.pause();
+  h.player.restart();        // 暫停中重新播放：也算新的一次
+  assert.equal(h.spoken[3].repeat, false);
+});
+
+test('念單字的保險時間從語音真的開始念（onstart）才起算', () => {
+  const h = createHarness({ gap: 2, speechTimeoutMs: 8000, speechStartTimeoutMs: 10000 });
+  h.player.start();
+  h.advance(6000);           // 線上語音還在載入，遲遲沒開始念
+  h.spoken[0].onStart();
+  h.advance(7999);           // 已超過開始等待的 10 秒，但才念了 7.999 秒
+  assert.equal(h.player.getState().phase, 'A');
+  h.advance(1);
+  assert.equal(h.player.getState().phase, 'gap');
+});
+
+test('語音一直沒有開始念（沒有 onstart），等開始等待時間到了照樣往下走', () => {
+  const h = createHarness({ gap: 2, speechTimeoutMs: 3000, speechStartTimeoutMs: 10000 });
+  h.player.start();
+  h.advance(9999);
+  assert.equal(h.player.getState().phase, 'A');
+  h.advance(1);
+  assert.equal(h.player.getState().phase, 'gap');
+});
+
+test('舊一輪遲到的 onstart 不會影響新一輪的計時', () => {
+  const h = createHarness({ gap: 2, speechTimeoutMs: 3000, speechStartTimeoutMs: 10000 });
+  h.player.start();
+  const oldA = h.spoken[0];
+  h.player.restart();
+  oldA.onStart();            // 舊的 onstart 遲到，不能把新一輪的等待時間縮成 3 秒
+  h.advance(3000);
+  assert.equal(h.player.getState().phase, 'A');
+  h.advance(7000);
+  assert.equal(h.player.getState().phase, 'gap');
+});
+
+test('播放完畢時會一併停掉還在念的語音', () => {
+  const h = createHarness({ total: 1 });
+  h.player.start();
+  playThroughQuestion(h);
+  assert.equal(h.player.getState().status, 'finished');
+  assert.deepEqual(h.events, ['cancelSpeech', 'finish']);
+});
+
+test('秒數設定：取整數、空白或不合法用預設值、超過上限就用上限', () => {
+  const { parseSeconds, MAX_SECONDS, DEFAULT_GAP_SECONDS, DEFAULT_ANSWER_SECONDS } = require('../auto-play.js');
+  assert.equal(DEFAULT_GAP_SECONDS, 2);
+  assert.equal(DEFAULT_ANSWER_SECONDS, 15);
+  assert.equal(MAX_SECONDS, 600);
+  assert.equal(parseSeconds('7.9', 2), 7);
+  assert.equal(parseSeconds('0', 2), 0);
+  assert.equal(parseSeconds('', 2), 2);
+  assert.equal(parseSeconds('  ', 15), 15);
+  assert.equal(parseSeconds('abc', 15), 15);
+  assert.equal(parseSeconds('-3', 15), 15);
+  assert.equal(parseSeconds('600', 15), 600);
+  assert.equal(parseSeconds('99999', 15), 600);
+  assert.equal(parseSeconds('1e9', 15), 600);
 });
