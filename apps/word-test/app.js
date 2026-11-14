@@ -23,6 +23,10 @@ let testInfoText = ''; // 畫面上方顯示的測驗資訊
 let isTeacherMode = false;
 let teacherModeData = []; // 記錄每個單字的狀態
 let teacherStartTime = null;
+let autoPlayer = null;              // 自動播放狀態機（auto-play.js）
+let autoPlayTicker = null;          // 播放中每 0.1 秒更新倒數的計時器
+let autoPlayHighlightedIndex = -1;  // 目前標示的題目列
+let currentTeacherUtterance = null; // 正在念的語音
 
 // DOM 元素
 const setupScreen = document.getElementById('setupScreen');
@@ -87,6 +91,20 @@ const teacherRateLabel = document.getElementById('teacherRateLabel');
 const teacherRate = document.getElementById('teacherRate');
 const teacherExitBtn = document.getElementById('teacherExitBtn');
 const exportReportBtn = document.getElementById('exportReportBtn');
+
+// 自動播放 DOM 元素
+const autoPlayStatus = document.getElementById('autoPlayStatus');
+const autoGapSeconds = document.getElementById('autoGapSeconds');
+const autoAnswerSeconds = document.getElementById('autoAnswerSeconds');
+const autoStartBtn = document.getElementById('autoStartBtn');
+const autoPauseBtn = document.getElementById('autoPauseBtn');
+const autoStopBtn = document.getElementById('autoStopBtn');
+const autoRestartBtn = document.getElementById('autoRestartBtn');
+const autoOverallText = document.getElementById('autoOverallText');
+const autoOverallFill = document.getElementById('autoOverallFill');
+const autoPhaseText = document.getElementById('autoPhaseText');
+const autoCountdown = document.getElementById('autoCountdown');
+const autoPhaseFill = document.getElementById('autoPhaseFill');
 
 // 初始化
 async function init() {
@@ -1041,6 +1059,7 @@ function startTeacherMode() {
   currentTestName = getSelectedTestName();
   isTeacherMode = true;
   teacherStartTime = new Date();
+  disposeAutoPlay();
 
   // 準備題目清單
   prepareWordList();
@@ -1061,6 +1080,10 @@ function startTeacherMode() {
   // 生成單字列
   generateWordRows();
   updateTeacherStats();
+
+  // 自動播放
+  autoPlayer = createTeacherAutoPlayer();
+  renderAutoPlay(autoPlayer.getState());
 
   // 切換畫面
   showScreen(teacherScreen);
@@ -1107,8 +1130,15 @@ function generateWordRows() {
   updateVoiceTooltips();
 }
 
-// 播放老師模式單字
+// 手動按某一列的 A / B 播放：會先停掉自動播放
 function playTeacherWord(index, voiceIndex) {
+  stopAutoPlay();
+  speakTeacherWord(index, voiceIndex);
+}
+
+// 念出老師模式的單字並累計播放次數、寫入 log（手動與自動播放共用）
+// onEnd：念完（或出錯）時呼叫，自動播放靠它接續下一個階段
+function speakTeacherWord(index, voiceIndex, { onEnd = null, source = '老師模式播放' } = {}) {
   const item = teacherModeData[index];
   const word = item.word;
   const voice = voiceIndex === 0 ? voice1 : voice2;
@@ -1128,9 +1158,185 @@ function playTeacherWord(index, voiceIndex) {
   utterance.voice = voice;
   utterance.lang = 'en-US';
   utterance.rate = 0.9;
+  if (onEnd) {
+    utterance.onend = onEnd;
+    utterance.onerror = onEnd;
+  }
+  // 留住參考，避免部分瀏覽器把還在念的 utterance 回收掉而不送 onend
+  currentTeacherUtterance = utterance;
   speechSynthesis.speak(utterance);
 
-  addLog(`老師模式播放: ${word} (發音${voiceIndex + 1}, 第${voiceIndex === 0 ? item.play1Count : item.play2Count}次)`);
+  addLog(`${source}: ${word} (發音${voiceIndex + 1}, 第${voiceIndex === 0 ? item.play1Count : item.play2Count}次)`);
+}
+
+// ============================================
+// 老師模式：自動播放
+// ============================================
+
+const AUTO_PHASE_LABELS = { A: '念 A', gap: '間隔', B: '念 B', answer: '作答時間' };
+
+// 讀取秒數設定：整數、最小 0，不合法時用預設值
+function readSecondsInput(input, fallback) {
+  const value = Math.floor(Number(input.value));
+  if (input.value.trim() === '' || !Number.isFinite(value) || value < 0) return fallback;
+  return value;
+}
+
+// 離開輸入欄時把數字整理成合法值
+function normalizeSecondsInput(input, fallback) {
+  input.value = String(readSecondsInput(input, fallback));
+}
+
+autoGapSeconds.addEventListener('change', () => normalizeSecondsInput(autoGapSeconds, 2));
+autoAnswerSeconds.addEventListener('change', () => normalizeSecondsInput(autoAnswerSeconds, 15));
+
+// 為每次進入老師模式建立一個新的自動播放器
+function createTeacherAutoPlayer() {
+  return AutoPlay.createAutoPlayer({
+    total: teacherModeData.length,
+    getGapSeconds: () => readSecondsInput(autoGapSeconds, 2),
+    getAnswerSeconds: () => readSecondsInput(autoAnswerSeconds, 15),
+    speak: (index, voiceIndex, done) => speakTeacherWord(index, voiceIndex, { onEnd: done, source: '自動播放' }),
+    cancelSpeech: () => speechSynthesis.cancel(),
+    // onend 沒送來時的保險時間：依單字長度估算，寧可長一點
+    speechTimeoutMs: index => 4000 + teacherModeData[index].word.length * 300,
+    now: () => Date.now(),
+    setTimer: (fn, ms) => setTimeout(fn, ms),
+    clearTimer: id => clearTimeout(id),
+    onChange: renderAutoPlay,
+    onFinish: () => {
+      addLog('自動播放完畢');
+      autoPlayStatus.textContent = '播放完畢！再按「開始」會從第一題重新播放';
+    },
+  });
+}
+
+autoStartBtn.addEventListener('click', () => {
+  if (!autoPlayer) return;
+  const { status, index } = autoPlayer.getState();
+  addLog(status === 'stopped' ? `自動播放繼續（第 ${index + 1} 題）` : '自動播放開始（第 1 題）');
+  autoPlayer.start();
+});
+
+autoPauseBtn.addEventListener('click', () => {
+  if (!autoPlayer) return;
+  if (autoPlayer.getState().status === 'paused') {
+    addLog('自動播放繼續');
+    autoPlayer.resume();
+  } else {
+    addLog('自動播放暫停');
+    autoPlayer.pause();
+  }
+});
+
+autoStopBtn.addEventListener('click', () => {
+  if (!autoPlayer) return;
+  addLog('自動播放停止');
+  autoPlayer.stop();
+});
+
+autoRestartBtn.addEventListener('click', () => {
+  if (!autoPlayer) return;
+  addLog('自動播放重新開始（第 1 題）');
+  autoPlayer.restart();
+});
+
+// 停掉自動播放（手動播放、離開老師模式時呼叫）：清掉計時器與語音
+function stopAutoPlay() {
+  if (!autoPlayer) return;
+  const { status } = autoPlayer.getState();
+  if (status === 'playing' || status === 'paused') {
+    addLog('自動播放停止');
+    autoPlayer.stop();
+  }
+}
+
+// 依自動播放狀態更新控制列、進度條與目前題目列
+function renderAutoPlay(state) {
+  const { status, index, phase, total } = state;
+  const active = status === 'playing' || status === 'paused';
+
+  autoStartBtn.textContent = status === 'stopped' ? '繼續' : '開始';
+  autoStartBtn.disabled = active;
+  autoPauseBtn.textContent = status === 'paused' ? '繼續' : '暫停';
+  autoPauseBtn.disabled = !active;
+  autoStopBtn.disabled = !active;
+
+  if (status === 'playing') autoPlayStatus.textContent = '播放中';
+  else if (status === 'paused') autoPlayStatus.textContent = '已暫停';
+  else if (status === 'stopped') autoPlayStatus.textContent = `已停止，按「繼續」從第 ${index + 1} 題念 A 開始`;
+  else if (status === 'idle') autoPlayStatus.textContent = '按「開始」從第一題播放';
+
+  // 整體進度
+  const shown = status === 'idle' ? 0 : status === 'finished' ? total : index + 1;
+  autoOverallText.textContent = `第 ${shown} / ${total} 題`;
+  autoOverallFill.style.width = total > 0 ? `${(shown / total) * 100}%` : '0%';
+
+  // 目前題目列
+  highlightAutoPlayRow(status === 'idle' || status === 'finished' ? -1 : index);
+
+  renderAutoPlayPhase(state);
+
+  // 播放中才需要每 0.1 秒更新倒數
+  if (status === 'playing' && !autoPlayTicker) {
+    autoPlayTicker = setInterval(() => {
+      if (autoPlayer) renderAutoPlayPhase(autoPlayer.getState());
+    }, 100);
+  } else if (status !== 'playing') {
+    clearAutoPlayTicker();
+  }
+}
+
+// 目前階段與倒數
+function renderAutoPlayPhase({ status, phase, durationMs, remainingMs }) {
+  if (!phase) {
+    autoPhaseText.textContent = status === 'finished' ? '播放完畢' : status === 'stopped' ? '已停止' : '尚未開始';
+    autoCountdown.textContent = '';
+    autoPhaseFill.style.width = '0%';
+    return;
+  }
+
+  const label = AUTO_PHASE_LABELS[phase];
+  autoPhaseText.textContent = status === 'paused' ? `${label}（暫停）` : label;
+
+  if (remainingMs === null) {
+    // 念單字中（或念單字時暫停）：沒有倒數
+    autoCountdown.textContent = '';
+    autoPhaseFill.style.width = status === 'paused' ? '0%' : '100%';
+    return;
+  }
+
+  autoCountdown.textContent = `剩 ${Math.ceil(remainingMs / 1000)} 秒`;
+  autoPhaseFill.style.width = durationMs > 0 ? `${(remainingMs / durationMs) * 100}%` : '0%';
+}
+
+// 標示正在播放的那一列，換題時捲到畫面中
+function highlightAutoPlayRow(index) {
+  if (index === autoPlayHighlightedIndex) return;
+  const prev = document.getElementById(`word-row-${autoPlayHighlightedIndex}`);
+  if (prev) prev.classList.remove('autoplay-current');
+  autoPlayHighlightedIndex = index;
+  const row = document.getElementById(`word-row-${index}`);
+  if (!row) return;
+  row.classList.add('autoplay-current');
+  row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function clearAutoPlayTicker() {
+  if (autoPlayTicker) {
+    clearInterval(autoPlayTicker);
+    autoPlayTicker = null;
+  }
+}
+
+// 離開老師模式時徹底收掉自動播放
+function disposeAutoPlay() {
+  stopAutoPlay();
+  clearAutoPlayTicker();
+  speechSynthesis.cancel();
+  currentTeacherUtterance = null;
+  autoPlayer = null;
+  autoPlayHighlightedIndex = -1;
 }
 
 // 設定單字結果 (再按一次同一個結果會取消批改)
@@ -1233,6 +1439,7 @@ teacherExitBtn.addEventListener('click', exitTeacherMode);
 // 結束老師模式
 function exitTeacherMode() {
   if (confirm('確定要結束老師模式嗎？')) {
+    disposeAutoPlay();
     addLog(`=== 老師模式結束 ===`);
 
     isTeacherMode = false;

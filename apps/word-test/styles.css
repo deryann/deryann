@@ -981,6 +981,62 @@ input {
   color: #FFFFFF;
 }
 
+/* 老師模式：自動播放 */
+.autoplay-settings,
+.autoplay-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.autoplay-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.autoplay-buttons .btn {
+  flex: 1 1 120px;
+  min-height: 48px;
+}
+
+.autoplay-buttons .btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.autoplay-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.autoplay-progress-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.autoplay-countdown {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 階段倒數：每 0.1 秒更新，用線性動畫避免跳動 */
+.autoplay-phase-fill {
+  background: var(--listen);
+  transition: width 0.1s linear;
+}
+
+/* 正在自動播放的那一題 */
+.word-row.autoplay-current {
+  box-shadow: 0 0 0 3px var(--primary);
+  scroll-margin: 16px;
+}
+
 /* 響應式設計 */
 @media (max-width: 600px) {
   .screen {
