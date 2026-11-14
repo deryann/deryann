@@ -58,7 +58,23 @@
         <p id="browserInfo" class="voice-line"></p>
         <p id="voiceExpect" class="voice-line muted"></p>
         <p id="voiceStatus" class="voice-line"></p>
-        <ul id="voiceList" class="voice-list"></ul>
+        <div id="voicePicker" class="voice-picker">
+          <div class="voice-pick-row">
+            <label for="voiceSelectA" class="voice-tag">聲音 A</label>
+            <select id="voiceSelectA" class="voice-select" data-voice-slot="0"></select>
+            <button type="button" class="btn btn-outline btn-pill voice-try-btn" data-try-voice="0">試聽</button>
+          </div>
+          <div class="voice-pick-row">
+            <label for="voiceSelectB" class="voice-tag">聲音 B</label>
+            <select id="voiceSelectB" class="voice-select" data-voice-slot="1"></select>
+            <button type="button" class="btn btn-outline btn-pill voice-try-btn" data-try-voice="1">試聽</button>
+          </div>
+          <div class="try-word-row">
+            <label for="tryWordInput">試聽用的單字</label>
+            <input type="text" id="tryWordInput" class="try-word-input" placeholder="English"
+                   autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
+          </div>
+        </div>
       </section>
 
       <div class="actions">

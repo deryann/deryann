@@ -189,20 +189,17 @@ function initVoices() {
     availableVoices = speechSynthesis.getVoices();
     // 選擇英語語音
     const enVoices = availableVoices.filter(v => v.lang.startsWith('en'));
+    // 可挑選的聲音：優先英文聲音，沒有的話就用全部聲音將就
+    selectableVoices = enVoices.length > 0 ? enVoices : availableVoices;
 
-    if (enVoices.length >= 2) {
-      voice1 = enVoices[0];
-      voice2 = enVoices[1];
-    } else if (enVoices.length === 1) {
-      voice1 = enVoices[0];
-      voice2 = enVoices[0];
-    } else {
-      // 使用預設語音
-      voice1 = availableVoices[0];
-      voice2 = availableVoices.length > 1 ? availableVoices[1] : availableVoices[0];
-    }
+    // 預設值：A 用第 1 種、B 用第 2 種（只有 1 種就兩個都用同一種）
+    const defaultA = selectableVoices[0] || null;
+    const defaultB = selectableVoices[1] || defaultA;
+    voice1 = findVoiceByURI(loadSavedVoiceURI(VOICE_STORAGE_KEYS[0])) || defaultA;
+    voice2 = findVoiceByURI(loadSavedVoiceURI(VOICE_STORAGE_KEYS[1])) || defaultB;
 
     renderVoiceInfo(enVoices);
+    renderVoicePicker();
     updateVoiceTooltips();
   };
 
@@ -211,6 +208,94 @@ function initVoices() {
     speechSynthesis.onvoiceschanged = loadVoices;
   }
 }
+
+// ===== 使用者挑選發音聲音 =====
+const VOICE_STORAGE_KEYS = ['wordTest.voiceA', 'wordTest.voiceB'];
+const DEFAULT_TRY_WORD = 'English';
+let selectableVoices = []; // 下拉選單中可挑選的聲音
+
+function loadSavedVoiceURI(key) {
+  try {
+    return localStorage.getItem(key);
+  } catch (e) {
+    return null;
+  }
+}
+
+function saveVoiceURI(key, uri) {
+  try {
+    localStorage.setItem(key, uri);
+  } catch (e) {
+    // 無痕模式等情況無法儲存，忽略即可
+  }
+}
+
+// 只在可挑選的聲音中尋找，避免套用到已經不存在的聲音
+function findVoiceByURI(uri) {
+  if (!uri) return null;
+  return selectableVoices.find(v => v.voiceURI === uri) || null;
+}
+
+// 產生聲音 A / B 的下拉選單
+function renderVoicePicker() {
+  document.querySelectorAll('.voice-select').forEach(select => {
+    const slot = Number(select.dataset.voiceSlot);
+    const current = slot === 0 ? voice1 : voice2;
+    select.innerHTML = '';
+
+    if (selectableVoices.length === 0) {
+      const option = document.createElement('option');
+      option.textContent = '瀏覽器預設聲音';
+      select.appendChild(option);
+      select.disabled = true;
+      return;
+    }
+
+    selectableVoices.forEach(v => {
+      const option = document.createElement('option');
+      option.value = v.voiceURI;
+      option.textContent = `${v.name}（${v.lang}）`;
+      if (current && v.voiceURI === current.voiceURI) option.selected = true;
+      select.appendChild(option);
+    });
+    // 只有一種聲音時沒得選，就將就使用這一種
+    select.disabled = selectableVoices.length === 1;
+  });
+}
+
+document.querySelectorAll('.voice-select').forEach(select => {
+  select.addEventListener('change', () => {
+    const slot = Number(select.dataset.voiceSlot);
+    const voice = findVoiceByURI(select.value);
+    if (!voice) return;
+    if (slot === 0) voice1 = voice;
+    else voice2 = voice;
+    saveVoiceURI(VOICE_STORAGE_KEYS[slot], voice.voiceURI);
+    updateVoiceTooltips();
+    addLog(`設定聲音 ${slot === 0 ? 'A' : 'B'}: ${voice.name} (${voice.lang})`);
+  });
+});
+
+// 試聽：念使用者輸入的單字，沒輸入就念 "English"
+document.querySelectorAll('[data-try-voice]').forEach(button => {
+  button.addEventListener('click', () => {
+    if (!('speechSynthesis' in window)) {
+      alert('你的瀏覽器不支援語音合成功能。');
+      return;
+    }
+    const slot = Number(button.dataset.tryVoice);
+    const tryInput = document.getElementById('tryWordInput');
+    const text = tryInput.value.trim() || DEFAULT_TRY_WORD;
+    const voice = slot === 0 ? voice1 : voice2;
+
+    speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    if (voice) utterance.voice = voice;
+    utterance.lang = voice ? voice.lang : 'en-US';
+    utterance.rate = 0.9;
+    speechSynthesis.speak(utterance);
+  });
+});
 
 // 說明聲音 A（index 0）或聲音 B（index 1）實際使用的語音
 function describeVoice(index) {
@@ -314,13 +399,11 @@ function renderVoiceInfo(enVoices) {
   const browserInfo = document.getElementById('browserInfo');
   const voiceExpect = document.getElementById('voiceExpect');
   const voiceStatus = document.getElementById('voiceStatus');
-  const voiceList = document.getElementById('voiceList');
   const badge = document.getElementById('voiceCountBadge');
   if (!browserInfo) return;
 
   browserInfo.textContent = `目前的瀏覽器：${browser.name}（${browser.os}）`;
   voiceExpect.textContent = getVoiceExpectation(browser);
-  voiceList.innerHTML = '';
   voiceStatus.className = 'voice-line';
 
   if (enVoices === null) {
@@ -328,37 +411,25 @@ function renderVoiceInfo(enVoices) {
     badge.dataset.state = 'bad';
     voiceStatus.textContent = '這個瀏覽器不支援語音合成，無法播放單字發音，請改用 Chrome、Edge 或 Safari。';
     voiceStatus.classList.add('voice-bad');
+    document.getElementById('voicePicker').hidden = true;
     return;
   }
 
   badge.textContent = `偵測到 ${enVoices.length} 種英文聲音`;
   if (enVoices.length >= 2) {
     badge.dataset.state = 'good';
-    voiceStatus.textContent = '測驗時的「聲音 A」「聲音 B」會使用下列前兩種不同的聲音。';
+    voiceStatus.textContent = '可以在下面替「聲音 A」「聲音 B」各挑一種聲音，按「試聽」先聽聽看。';
   } else if (enVoices.length === 1) {
     badge.dataset.state = 'warn';
-    voiceStatus.textContent = '只有 1 種英文聲音，「聲音 A」和「聲音 B」聽起來會一樣。';
+    voiceStatus.textContent = '只有 1 種英文聲音，沒得挑，「聲音 A」和「聲音 B」會用同一種聲音。';
     voiceStatus.classList.add('voice-warn');
   } else {
     badge.dataset.state = 'warn';
     voiceStatus.textContent = availableVoices.length === 0
       ? '還沒取得聲音清單，有些瀏覽器要等一下或點一下頁面才會載入。'
-      : '沒有找到英文聲音，會改用預設聲音，發音可能不是英文。';
+      : '沒有找到英文聲音，只能從其他語言的聲音挑選，發音可能不是英文。';
     voiceStatus.classList.add('voice-warn');
   }
-
-  enVoices.forEach((v, i) => {
-    const li = document.createElement('li');
-    const tag = i === 0 ? '聲音 A' : i === 1 ? '聲音 B' : '';
-    if (tag) {
-      const t = document.createElement('span');
-      t.className = 'voice-tag';
-      t.textContent = tag;
-      li.appendChild(t);
-    }
-    li.appendChild(document.createTextNode(`${v.name}（${v.lang}）`));
-    voiceList.appendChild(li);
-  });
 }
 
 // 題目範圍欄位更新

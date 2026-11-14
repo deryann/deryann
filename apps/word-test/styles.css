@@ -319,20 +319,77 @@ input {
   font-weight: 700;
 }
 
-.voice-list {
-  list-style: none;
+.voice-picker {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  max-height: 180px;
-  overflow-y: auto;
-  font-size: 0.9375rem;
-  color: var(--muted);
-  overflow-wrap: anywhere;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
 }
 
-.voice-list:empty {
+.voice-picker[hidden] {
   display: none;
+}
+
+.voice-pick-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.voice-pick-row .voice-tag {
+  flex: none;
+  margin-right: 0;
+  padding: 2px 10px;
+}
+
+.voice-select {
+  flex: 1;
+  min-width: 0;
+  height: 48px;
+  padding: 0 12px;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.voice-select:disabled {
+  background: var(--bg);
+  color: var(--muted);
+}
+
+.voice-try-btn {
+  flex: none;
+  padding: 0 18px;
+  font-size: 1rem;
+}
+
+.try-word-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+}
+
+.try-word-input {
+  flex: 1;
+  min-width: 160px;
+  height: 48px;
+  padding: 0 12px;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 1.125rem;
+}
+
+.voice-select:focus-visible,
+.try-word-input:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
 }
 
 .voice-tag {
