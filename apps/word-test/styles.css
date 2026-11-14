@@ -441,6 +441,39 @@ input {
   accent-color: var(--primary);
 }
 
+/* 自訂單字 */
+.custom-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.custom-field .try-word-input {
+  width: 100%;
+  min-width: 0;
+}
+
+.custom-words-input {
+  width: 100%;
+  min-height: 160px;
+  padding: 10px 12px;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 1.125rem;
+  font-weight: 400;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.custom-words-input:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+
 /* 作答畫面 */
 .top-line {
   display: flex;

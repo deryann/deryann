@@ -4,6 +4,7 @@ let testData = {};
 let availableTests = [];
 let currentUser = '';
 let currentTestName = '';
+let currentTestKey = ''; // 開始測驗時鎖定的考卷 key，之後取題都用它，不受設定畫面改選影響
 let selectedUser = '';
 let selectedTest = '';
 let wordList = [];
@@ -33,6 +34,10 @@ const testList = document.getElementById('testList');
 const rangeStart = document.getElementById('rangeStart');
 const rangeEnd = document.getElementById('rangeEnd');
 const rangeTotal = document.getElementById('rangeTotal');
+const customPanel = document.getElementById('customPanel');
+const customNameInput = document.getElementById('customNameInput');
+const customWordsInput = document.getElementById('customWordsInput');
+const customWordCount = document.getElementById('customWordCount');
 const randomCheck = document.getElementById('randomCheck');
 const startBtn = document.getElementById('startBtn');
 const testInfo = document.getElementById('testInfo');
@@ -148,6 +153,9 @@ async function loadAvailableTests() {
     }
   }
 
+  // 最後加上「自訂單字」選項
+  initCustomTest();
+
   // 預設選擇測驗卷，並同步更新題目範圍
   if (availableTests.includes(defaultTest)) {
     selectTest(defaultTest);
@@ -165,14 +173,136 @@ function updatePressed(container, pressedButton) {
 function selectTest(testName) {
   selectedTest = testName;
   updatePressed(testList, testList.querySelector(`[data-test="${testName}"]`));
+  customPanel.hidden = testName !== CUSTOM_TEST_KEY;
+  updateRangeForSelectedTest();
+}
 
-  const data = testData[testName];
-  const maxNum = Math.max(...Object.keys(data).map(Number));
+// 依目前選的考卷更新題目範圍
+// keepRange: 只有題目內容變動（例如編輯自訂單字）時保留使用者設定的範圍，並夾在新題數內；
+//            原本的結尾就是最後一題的話，跟著新的最後一題走
+function updateRangeForSelectedTest({ keepRange = false } = {}) {
+  const oldMax = parseInt(rangeEnd.max);
+  const oldStart = parseInt(rangeStart.value);
+  const oldEnd = parseInt(rangeEnd.value);
+  const data = testData[selectedTest] || {};
+  const numbers = Object.keys(data).map(Number);
+  if (numbers.length === 0) {
+    // 自訂單字還沒輸入：範圍先固定為 1，開始時會提示
+    rangeStart.max = 1;
+    rangeEnd.max = 1;
+    rangeStart.value = 1;
+    rangeEnd.value = 1;
+    rangeTotal.textContent = '還沒有單字';
+    return;
+  }
+
+  const maxNum = Math.max(...numbers);
+  let start = 1;
+  let end = maxNum;
+  if (keepRange && !isNaN(oldEnd) && !isNaN(oldMax) && oldEnd < oldMax) {
+    end = Math.min(Math.max(oldEnd, 1), maxNum);
+  }
+  if (keepRange && !isNaN(oldStart)) {
+    start = Math.min(Math.max(oldStart, 1), end);
+  }
   rangeStart.max = maxNum;
   rangeEnd.max = maxNum;
-  rangeStart.value = 1;
-  rangeEnd.value = maxNum;
+  rangeStart.value = start;
+  rangeEnd.value = end;
   rangeTotal.textContent = `這份卷共 ${maxNum} 題`;
+}
+
+// ===== localStorage 存取（無痕模式等情況可能丟例外，一律吞掉） =====
+function safeGetItem(key) {
+  try {
+    return localStorage.getItem(key);
+  } catch (e) {
+    return null;
+  }
+}
+
+function safeSetItem(key, value) {
+  try {
+    localStorage.setItem(key, value);
+  } catch (e) {
+    // 無法儲存，忽略即可
+  }
+}
+
+// 檔名不能用的字元（Windows 保留字元與控制字元）換成底線
+function sanitizeFilenamePart(name) {
+  return String(name).replace(/[\\/:*?"<>|\u0000-\u001f\u007f]/g, '_').trim() || '_';
+}
+
+// ===== 自訂單字考卷 =====
+const CUSTOM_TEST_KEY = '__custom__'; // testData 中自訂考卷的 key，不會和 papers 檔名衝突
+const DEFAULT_CUSTOM_NAME = '自訂單字';
+const CUSTOM_STORAGE_KEYS = { words: 'wordTest.customWords', name: 'wordTest.customName' };
+
+// 建立「自訂單字」chip，並從 localStorage 還原上次輸入的內容
+function initCustomTest() {
+  customWordsInput.value = safeGetItem(CUSTOM_STORAGE_KEYS.words) || '';
+  customNameInput.value = safeGetItem(CUSTOM_STORAGE_KEYS.name) || '';
+  refreshCustomTestData();
+
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'chip-btn';
+  button.textContent = DEFAULT_CUSTOM_NAME;
+  button.dataset.test = CUSTOM_TEST_KEY;
+  button.setAttribute('aria-pressed', 'false');
+  button.addEventListener('click', () => selectTest(CUSTOM_TEST_KEY));
+  testList.appendChild(button);
+}
+
+// 重新解析輸入的單字，更新 testData 與題數提示
+function refreshCustomTestData() {
+  const words = CustomWords.parseCustomWords(customWordsInput.value);
+  testData[CUSTOM_TEST_KEY] = CustomWords.buildPaper(words);
+  customWordCount.textContent = `共 ${words.length} 個單字`;
+}
+
+// 打字時延遲一下再解析與儲存，避免每個按鍵都重建考卷、寫 localStorage
+const CUSTOM_WORDS_DEBOUNCE_MS = 200;
+let pendingCustomWordsTimer = null;
+
+function applyCustomWordsInput() {
+  clearTimeout(pendingCustomWordsTimer);
+  pendingCustomWordsTimer = null;
+  safeSetItem(CUSTOM_STORAGE_KEYS.words, customWordsInput.value);
+  refreshCustomTestData();
+  if (selectedTest === CUSTOM_TEST_KEY) {
+    updateRangeForSelectedTest({ keepRange: true });
+  }
+}
+
+// 開始測驗前呼叫：若還有尚未套用的輸入，立刻套用，確保用的是最新的單字
+function flushCustomWordsInput() {
+  if (pendingCustomWordsTimer !== null) applyCustomWordsInput();
+}
+
+customWordsInput.addEventListener('input', () => {
+  clearTimeout(pendingCustomWordsTimer);
+  pendingCustomWordsTimer = setTimeout(applyCustomWordsInput, CUSTOM_WORDS_DEBOUNCE_MS);
+});
+
+customNameInput.addEventListener('input', () => {
+  safeSetItem(CUSTOM_STORAGE_KEYS.name, customNameInput.value);
+});
+
+// 開始測驗時顯示的考卷名稱：自訂考卷用使用者輸入的名稱
+function getSelectedTestName() {
+  if (selectedTest !== CUSTOM_TEST_KEY) return selectedTest;
+  return customNameInput.value.trim() || DEFAULT_CUSTOM_NAME;
+}
+
+// 選的考卷是否有題目；沒有就提示使用者
+function ensureSelectedTestHasWords() {
+  const data = testData[selectedTest] || {};
+  if (Object.keys(data).length > 0) return true;
+  alert('請先輸入要考的單字！');
+  customWordsInput.focus();
+  return false;
 }
 
 // 初始化語音
@@ -195,8 +325,8 @@ function initVoices() {
     // 預設值：A 用第 1 種、B 用第 2 種（只有 1 種就兩個都用同一種）
     const defaultA = selectableVoices[0] || null;
     const defaultB = selectableVoices[1] || defaultA;
-    voice1 = findVoiceByURI(loadSavedVoiceURI(VOICE_STORAGE_KEYS[0])) || defaultA;
-    voice2 = findVoiceByURI(loadSavedVoiceURI(VOICE_STORAGE_KEYS[1])) || defaultB;
+    voice1 = findVoiceByURI(safeGetItem(VOICE_STORAGE_KEYS[0])) || defaultA;
+    voice2 = findVoiceByURI(safeGetItem(VOICE_STORAGE_KEYS[1])) || defaultB;
 
     renderVoiceInfo(enVoices);
     renderVoicePicker();
@@ -214,21 +344,6 @@ const VOICE_STORAGE_KEYS = ['wordTest.voiceA', 'wordTest.voiceB'];
 const DEFAULT_TRY_WORD = 'English';
 let selectableVoices = []; // 下拉選單中可挑選的聲音
 
-function loadSavedVoiceURI(key) {
-  try {
-    return localStorage.getItem(key);
-  } catch (e) {
-    return null;
-  }
-}
-
-function saveVoiceURI(key, uri) {
-  try {
-    localStorage.setItem(key, uri);
-  } catch (e) {
-    // 無痕模式等情況無法儲存，忽略即可
-  }
-}
 
 // 只在可挑選的聲音中尋找，避免套用到已經不存在的聲音
 function findVoiceByURI(uri) {
@@ -270,7 +385,7 @@ document.querySelectorAll('.voice-select').forEach(select => {
     if (!voice) return;
     if (slot === 0) voice1 = voice;
     else voice2 = voice;
-    saveVoiceURI(VOICE_STORAGE_KEYS[slot], voice.voiceURI);
+    safeSetItem(VOICE_STORAGE_KEYS[slot], voice.voiceURI);
     updateVoiceTooltips();
     addLog(`設定聲音 ${slot === 0 ? 'A' : 'B'}: ${voice.name} (${voice.lang})`);
   });
@@ -468,6 +583,8 @@ function showScreen(screen) {
 startBtn.addEventListener('click', startTest);
 
 function startTest() {
+  flushCustomWordsInput();
+
   // 驗證選擇
   if (!selectedUser) {
     alert('請選擇考生名字！');
@@ -479,9 +596,12 @@ function startTest() {
     return;
   }
 
+  if (!ensureSelectedTestHasWords()) return;
+
   normalizeRange();
   currentUser = selectedUser;
-  currentTestName = selectedTest;
+  currentTestKey = selectedTest;
+  currentTestName = getSelectedTestName();
 
   // 準備題目
   prepareWordList();
@@ -529,7 +649,8 @@ function describeRange() {
 
 // 準備單字清單
 function prepareWordList() {
-  const data = testData[currentTestName];
+  // 用開始時鎖定的考卷 key 取題（自訂考卷的顯示名稱和 key 不同）
+  const data = testData[currentTestKey];
   const start = parseInt(rangeStart.value);
   const end = parseInt(rangeEnd.value);
 
@@ -869,7 +990,7 @@ function saveLog() {
   const a = document.createElement('a');
   a.href = url;
   const timestamp = formatTimeForFilename(new Date());
-  a.download = `testing_${currentTestName}_${currentUser}_${timestamp}.log`;
+  a.download = `testing_${sanitizeFilenamePart(currentTestName)}_${sanitizeFilenamePart(currentUser)}_${timestamp}.log`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -905,14 +1026,19 @@ teacherModeBtn.addEventListener('click', startTeacherMode);
 
 // 開始老師模式
 function startTeacherMode() {
+  flushCustomWordsInput();
+
   // 驗證選擇
   if (!selectedTest) {
     alert('請選擇測驗卷！');
     return;
   }
 
+  if (!ensureSelectedTestHasWords()) return;
+
   normalizeRange();
-  currentTestName = selectedTest;
+  currentTestKey = selectedTest;
+  currentTestName = getSelectedTestName();
   isTeacherMode = true;
   teacherStartTime = new Date();
 
@@ -1094,7 +1220,7 @@ function exportTeacherReport() {
   const a = document.createElement('a');
   a.href = url;
   const timestamp = formatTimeForFilename(new Date());
-  a.download = `teacher_mode_${currentTestName}_${timestamp}.log`;
+  a.download = `teacher_mode_${sanitizeFilenamePart(currentTestName)}_${timestamp}.log`;
   a.click();
   URL.revokeObjectURL(url);
 
