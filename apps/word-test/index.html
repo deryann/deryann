@@ -237,6 +237,47 @@
     </header>
 
     <div class="container container-wide">
+      <!-- 自動播放：每題念 A → 間隔 → 念 B → 作答時間 → 下一題 -->
+      <section id="autoPlayPanel" class="panel autoplay-panel" aria-labelledby="autoPlayTitle">
+        <div class="panel-head">
+          <h2 id="autoPlayTitle">自動播放</h2>
+          <span id="autoPlayStatus" class="muted" role="status" aria-live="polite">按「開始」從第一題播放</span>
+        </div>
+        <div class="autoplay-settings">
+          <div class="autoplay-field">
+            <label for="autoGapSeconds">A、B 間隔</label>
+            <input type="number" id="autoGapSeconds" class="num-input" min="0" step="1" inputmode="numeric" />
+            <span>秒</span>
+          </div>
+          <div class="autoplay-field">
+            <label for="autoAnswerSeconds">作答時間</label>
+            <input type="number" id="autoAnswerSeconds" class="num-input" min="0" step="1" inputmode="numeric" />
+            <span>秒</span>
+          </div>
+        </div>
+        <div class="autoplay-buttons">
+          <button type="button" id="autoStartBtn" class="btn btn-primary">開始</button>
+          <button type="button" id="autoPauseBtn" class="btn btn-outline" disabled>暫停</button>
+          <button type="button" id="autoStopBtn" class="btn btn-outline" disabled>停止</button>
+          <button type="button" id="autoRestartBtn" class="btn btn-outline">重新播放</button>
+        </div>
+        <div class="autoplay-progress">
+          <div class="autoplay-progress-row">
+            <span id="autoOverallText">第 0 / 0 題</span>
+          </div>
+          <div class="progress-bar" role="progressbar" aria-labelledby="autoOverallText">
+            <div id="autoOverallFill" class="progress-fill"></div>
+          </div>
+          <div class="autoplay-progress-row">
+            <span id="autoPhaseText" class="muted">尚未開始</span>
+            <span id="autoCountdown" class="autoplay-countdown"></span>
+          </div>
+          <div class="progress-bar" role="progressbar" aria-labelledby="autoPhaseText">
+            <div id="autoPhaseFill" class="progress-fill autoplay-phase-fill"></div>
+          </div>
+        </div>
+      </section>
+
       <div class="stat-grid stat-grid-auto">
         <div class="stat stat-correct">
           <div class="stat-label">答對</div>
@@ -268,6 +309,7 @@
   <audio id="noSound" src="no.wav" preload="auto"></audio>
 
   <script src="custom-words.js"></script>
+  <script src="auto-play.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
