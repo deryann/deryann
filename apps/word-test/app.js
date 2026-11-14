@@ -33,6 +33,10 @@ const testList = document.getElementById('testList');
 const rangeStart = document.getElementById('rangeStart');
 const rangeEnd = document.getElementById('rangeEnd');
 const rangeTotal = document.getElementById('rangeTotal');
+const customPanel = document.getElementById('customPanel');
+const customNameInput = document.getElementById('customNameInput');
+const customWordsInput = document.getElementById('customWordsInput');
+const customWordCount = document.getElementById('customWordCount');
 const randomCheck = document.getElementById('randomCheck');
 const startBtn = document.getElementById('startBtn');
 const testInfo = document.getElementById('testInfo');
@@ -148,6 +152,9 @@ async function loadAvailableTests() {
     }
   }
 
+  // 最後加上「自訂單字」選項
+  initCustomTest();
+
   // 預設選擇測驗卷，並同步更新題目範圍
   if (availableTests.includes(defaultTest)) {
     selectTest(defaultTest);
@@ -165,14 +172,101 @@ function updatePressed(container, pressedButton) {
 function selectTest(testName) {
   selectedTest = testName;
   updatePressed(testList, testList.querySelector(`[data-test="${testName}"]`));
+  customPanel.hidden = testName !== CUSTOM_TEST_KEY;
+  updateRangeForSelectedTest();
+}
 
-  const data = testData[testName];
-  const maxNum = Math.max(...Object.keys(data).map(Number));
+// 依目前選的考卷重設題目範圍
+function updateRangeForSelectedTest() {
+  const data = testData[selectedTest] || {};
+  const numbers = Object.keys(data).map(Number);
+  if (numbers.length === 0) {
+    // 自訂單字還沒輸入：範圍先固定為 1，開始時會提示
+    rangeStart.max = 1;
+    rangeEnd.max = 1;
+    rangeStart.value = 1;
+    rangeEnd.value = 1;
+    rangeTotal.textContent = '還沒有單字';
+    return;
+  }
+
+  const maxNum = Math.max(...numbers);
   rangeStart.max = maxNum;
   rangeEnd.max = maxNum;
   rangeStart.value = 1;
   rangeEnd.value = maxNum;
   rangeTotal.textContent = `這份卷共 ${maxNum} 題`;
+}
+
+// ===== 自訂單字考卷 =====
+const CUSTOM_TEST_KEY = '__custom__'; // testData 中自訂考卷的 key，不會和 papers 檔名衝突
+const DEFAULT_CUSTOM_NAME = '自訂單字';
+const CUSTOM_STORAGE_KEYS = { words: 'wordTest.customWords', name: 'wordTest.customName' };
+
+function loadStoredText(key) {
+  try {
+    return localStorage.getItem(key) || '';
+  } catch (e) {
+    return '';
+  }
+}
+
+function saveStoredText(key, value) {
+  try {
+    localStorage.setItem(key, value);
+  } catch (e) {
+    // 無痕模式等情況無法儲存，忽略即可
+  }
+}
+
+// 建立「自訂單字」chip，並從 localStorage 還原上次輸入的內容
+function initCustomTest() {
+  customWordsInput.value = loadStoredText(CUSTOM_STORAGE_KEYS.words);
+  customNameInput.value = loadStoredText(CUSTOM_STORAGE_KEYS.name);
+  refreshCustomTestData();
+
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'chip-btn';
+  button.textContent = DEFAULT_CUSTOM_NAME;
+  button.dataset.test = CUSTOM_TEST_KEY;
+  button.setAttribute('aria-pressed', 'false');
+  button.addEventListener('click', () => selectTest(CUSTOM_TEST_KEY));
+  testList.appendChild(button);
+}
+
+// 重新解析輸入的單字，更新 testData 與題數提示
+function refreshCustomTestData() {
+  const words = CustomWords.parseCustomWords(customWordsInput.value);
+  testData[CUSTOM_TEST_KEY] = CustomWords.buildPaper(words);
+  customWordCount.textContent = `共 ${words.length} 個單字`;
+}
+
+customWordsInput.addEventListener('input', () => {
+  saveStoredText(CUSTOM_STORAGE_KEYS.words, customWordsInput.value);
+  refreshCustomTestData();
+  if (selectedTest === CUSTOM_TEST_KEY) {
+    updateRangeForSelectedTest();
+  }
+});
+
+customNameInput.addEventListener('input', () => {
+  saveStoredText(CUSTOM_STORAGE_KEYS.name, customNameInput.value);
+});
+
+// 開始測驗時顯示的考卷名稱：自訂考卷用使用者輸入的名稱
+function getSelectedTestName() {
+  if (selectedTest !== CUSTOM_TEST_KEY) return selectedTest;
+  return customNameInput.value.trim() || DEFAULT_CUSTOM_NAME;
+}
+
+// 選的考卷是否有題目；沒有就提示使用者
+function ensureSelectedTestHasWords() {
+  const data = testData[selectedTest] || {};
+  if (Object.keys(data).length > 0) return true;
+  alert('請先輸入要考的單字！');
+  customWordsInput.focus();
+  return false;
 }
 
 // 初始化語音
@@ -479,9 +573,11 @@ function startTest() {
     return;
   }
 
+  if (!ensureSelectedTestHasWords()) return;
+
   normalizeRange();
   currentUser = selectedUser;
-  currentTestName = selectedTest;
+  currentTestName = getSelectedTestName();
 
   // 準備題目
   prepareWordList();
@@ -529,7 +625,8 @@ function describeRange() {
 
 // 準備單字清單
 function prepareWordList() {
-  const data = testData[currentTestName];
+  // 用選到的考卷 key 取題（自訂考卷的顯示名稱和 key 不同）
+  const data = testData[selectedTest];
   const start = parseInt(rangeStart.value);
   const end = parseInt(rangeEnd.value);
 
@@ -911,8 +1008,10 @@ function startTeacherMode() {
     return;
   }
 
+  if (!ensureSelectedTestHasWords()) return;
+
   normalizeRange();
-  currentTestName = selectedTest;
+  currentTestName = getSelectedTestName();
   isTeacherMode = true;
   teacherStartTime = new Date();
 

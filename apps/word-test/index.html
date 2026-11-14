@@ -32,6 +32,26 @@
         </div>
       </section>
 
+      <!-- 自訂單字：選到「自訂單字」考卷時才顯示 -->
+      <section id="customPanel" class="panel custom-panel" hidden>
+        <div class="panel-head">
+          <h2>自訂單字</h2>
+          <span id="customWordCount" class="muted" aria-live="polite"></span>
+        </div>
+        <div class="custom-field">
+          <label for="customNameInput">考卷名稱</label>
+          <input type="text" id="customNameInput" class="try-word-input" placeholder="自訂單字"
+                 autocomplete="off" />
+        </div>
+        <div class="custom-field">
+          <label for="customWordsInput">要考的單字</label>
+          <textarea id="customWordsInput" class="custom-words-input" rows="6"
+                    placeholder="每行一個單字，或用逗號分隔&#10;例如：apple, banana&#10;ice cream"
+                    autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"></textarea>
+          <p class="muted small">每行一個，或用「,」分隔；重複的單字會自動去除。</p>
+        </div>
+      </section>
+
       <section class="panel">
         <div class="panel-head">
           <h2>題目範圍</h2>
@@ -247,6 +267,7 @@
   <audio id="yesSound" src="yes.wav" preload="auto"></audio>
   <audio id="noSound" src="no.wav" preload="auto"></audio>
 
+  <script src="custom-words.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
